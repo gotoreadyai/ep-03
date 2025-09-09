@@ -1,13 +1,9 @@
 // src/pages/admin/permissions/index.tsx
 import { Route, Navigate } from "react-router-dom";
-import { ShieldCheck, Building2, Users, BookOpen } from "lucide-react";
-
-import { VendorManagement } from "./vendors";
-import { GroupManagement } from "./groups";
-import { CoursePermissions } from "./courses";
-
-// Import z folderu users
-import { usersResource, usersRoutes } from "./users/index";
+import { ShieldCheck, Check, Users, UsersRound } from "lucide-react";
+import { SimpleAccessManagement } from "./simple-access";
+import { SimpleUsersManagement } from "./simple-users";
+import { SimpleGroupsManagement } from "./simple-groups";
 
 // Główny zasób
 export const permissionsResource = {
@@ -19,68 +15,74 @@ export const permissionsResource = {
   },
 };
 
-// Podmenu - Vendorzy
-export const vendorManagementResource = {
-  name: "permissions-vendors",
-  list: "/admin/permissions/vendors",
+// Zarządzanie użytkownikami
+export const simpleUsersResource = {
+  name: "permissions-users",
+  list: "/admin/permissions/users",
   meta: {
-    label: "Vendorzy",
-    icon: <Building2 className="h-4 w-4" />,
-    parent: "permissions",
-  },
-};
-
-// Podmenu - Grupy
-export const groupManagementResource = {
-  name: "permissions-groups",
-  list: "/admin/permissions/groups",
-  meta: {
-    label: "Grupy",
+    label: "Użytkownicy",
     icon: <Users className="h-4 w-4" />,
     parent: "permissions",
   },
 };
 
-// Podmenu - Kursy
-export const coursePermissionsResource = {
-  name: "permissions-courses",
-  list: "/admin/permissions/courses",
+// Zarządzanie grupami
+export const simpleGroupsResource = {
+  name: "permissions-groups",
+  list: "/admin/permissions/groups",
   meta: {
-    label: "Dostęp do kursów",
-    icon: <BookOpen className="h-4 w-4" />,
+    label: "Grupy i klasy",
+    icon: <UsersRound className="h-4 w-4" />,
     parent: "permissions",
   },
 };
 
+// Prosty dostęp do kursów
+export const simpleAccessResource = {
+  name: "permissions-access",
+  list: "/admin/permissions/access",
+  meta: {
+    label: "Dostęp do kursów",
+    icon: <Check className="h-4 w-4" />,
+    parent: "permissions",
+  },
+};
+
+// Routing
 export const permissionsRoutes = [
-  // Default route - przekierowanie na listę użytkowników
+  // Default route - przekierowanie na użytkowników
   <Route 
     key="permissions-default" 
     path="permissions" 
     element={<Navigate to="/admin/permissions/users" replace />} 
   />,
   
-  // Routes dla pełnego modułu users - mapujemy i dodajemy prefix do ścieżek
-  ...usersRoutes.map(route => ({
-    ...route,
-    key: `permissions-${route.key}`,
-    props: {
-      ...route.props,
-      path: `permissions/${route.props.path}`
-    }
-  })),
+  // Route dla użytkowników
+  <Route 
+    key="permissions-users" 
+    path="permissions/users" 
+    element={<SimpleUsersManagement />} 
+  />,
   
-  // Pozostałe routes
-  <Route key="permissions-vendors" path="permissions/vendors" element={<VendorManagement />} />,
-  <Route key="permissions-groups" path="permissions/groups" element={<GroupManagement />} />,
-  <Route key="permissions-courses" path="permissions/courses" element={<CoursePermissions />} />,
+  // Route dla grup
+  <Route 
+    key="permissions-groups" 
+    path="permissions/groups" 
+    element={<SimpleGroupsManagement />} 
+  />,
+  
+  // Route dla dostępu do kursów
+  <Route 
+    key="permissions-access" 
+    path="permissions/access" 
+    element={<SimpleAccessManagement />} 
+  />,
 ];
 
 // Eksportuj zasoby do App.tsx
 export const permissionsResources = [
   permissionsResource,
-  usersResource,
-  vendorManagementResource,
-  groupManagementResource,
-  coursePermissionsResource,
+  simpleUsersResource,
+  simpleGroupsResource,
+  simpleAccessResource,
 ];
