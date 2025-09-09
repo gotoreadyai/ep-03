@@ -1,5 +1,5 @@
-// src/pages/teacher/users/list.tsx - POPRAWIONA WERSJA
-import { useTable, useNavigation, useGetIdentity } from "@refinedev/core";
+// src/pages/teacher/users/list.tsx
+import { useNavigation, useGetIdentity } from "@refinedev/core";
 import { Card, CardContent } from "@/components/ui/card";
 import { 
   Users, 
@@ -7,16 +7,13 @@ import {
   GraduationCap,
   UserCircle,
   Search,
-  BookOpen,
   Trophy,
   Clock,
   TrendingUp,
   AlertCircle
 } from "lucide-react";
 import { FlexBox } from "@/components/shared";
-import { PaginationSwith } from "@/components/navigation";
 import { Lead } from "@/components/reader";
-import { useLoading } from "@/utility";
 import { Badge, Button, Input } from "@/components/ui";
 import { SubPage } from "@/components/layout";
 import {
@@ -28,21 +25,27 @@ import {
 } from "@/components/ui/select";
 import { useState, useEffect } from "react";
 import { supabaseClient } from "@/utility";
+import type { StudentData, TeacherIdentity, Group, GroupMember, UserStats } from '../types';
 
-interface StudentData {
-  id: string;
-  email: string;
-  full_name: string;
-  groups: any[];
-  user_stats: any;
+// Typ dla danych z zapytania course_access
+interface CourseAccessWithGroup {
+  group_id: number | null;
+  groups: {
+    id: number;
+    name: string;
+    academic_year: string;
+    vendor_id?: number;
+    is_active?: boolean;
+    created_at?: string;
+  } | null;
 }
 
 export const UsersList = () => {
   const { show } = useNavigation();
-  const { data: identity } = useGetIdentity<any>();
+  const { data: identity } = useGetIdentity<TeacherIdentity>();
   const [searchTerm, setSearchTerm] = useState("");
   const [groupFilter, setGroupFilter] = useState<string>("all");
-  const [teacherGroups, setTeacherGroups] = useState<any[]>([]);
+  const [teacherGroups, setTeacherGroups] = useState<Group[]>([]);
   const [students, setStudents] = useState<StudentData[]>([]);
   const [loading, setLoading] = useState(true);
   
@@ -61,22 +64,36 @@ export const UsersList = () => {
             groups!inner(
               id,
               name,
-              academic_year
+              academic_year,
+              vendor_id,
+              is_active,
+              created_at
             )
           `)
           .eq('teacher_id', identity.id)
-          .not('group_id', 'is', null);
+          .not('group_id', 'is', null) as { 
+            data: CourseAccessWithGroup[] | null; 
+            error: any 
+          };
 
         if (groupsError) throw groupsError;
 
         // Usuń duplikaty grup
-        const uniqueGroups = Array.from(
-          new Map(
-            teacherGroupsData
-              ?.filter(item => item.group_id)
-              .map(item => [item.groups.id, item.groups])
-          ).values()
-        );
+        const uniqueGroupsMap = new Map<number, Group>();
+        teacherGroupsData?.forEach(item => {
+          if (item.group_id && item.groups) {
+            const group: Group = {
+              id: item.groups.id,
+              name: item.groups.name,
+              academic_year: item.groups.academic_year,
+              vendor_id: item.groups.vendor_id || 0,
+              is_active: item.groups.is_active ?? true,
+              created_at: item.groups.created_at || new Date().toISOString()
+            };
+            uniqueGroupsMap.set(group.id, group);
+          }
+        });
+        const uniqueGroups = Array.from(uniqueGroupsMap.values());
         
         setTeacherGroups(uniqueGroups);
 
@@ -96,20 +113,35 @@ export const UsersList = () => {
             id,
             email,
             full_name,
+            vendor_id,
+            role,
+            is_active,
+            created_at,
             groups:group_members!inner(
               group_id,
+              user_id,
+              joined_at,
               groups!inner(
                 id,
                 name,
-                academic_year
+                academic_year,
+                vendor_id,
+                is_active,
+                created_at
               )
             ),
             user_stats!left(
+              user_id,
               total_points,
               current_level,
               quizzes_completed,
               last_active,
-              daily_streak
+              daily_streak,
+              perfect_scores,
+              total_time_spent,
+              idle_points_rate,
+              last_idle_claim,
+              updated_at
             )
           `)
           .eq('role', 'student')
@@ -118,10 +150,27 @@ export const UsersList = () => {
 
         if (studentsError) throw studentsError;
 
-        // Filtruj tylko uczniów z grup nauczyciela
+        // Filtruj tylko uczniów z grup nauczyciela i mapuj na StudentData
         const filteredStudents = studentsData?.filter(student => 
-          student.groups?.some(g => groupIds.includes(g.groups.id))
-        ) || [];
+          student.groups?.some((g: any) => groupIds.includes(g.groups?.id))
+        ).map(student => ({
+          ...student,
+          role: student.role as 'student' | 'teacher' | 'admin',
+          groups: student.groups.map((g: any) => ({
+            group_id: g.group_id,
+            user_id: g.user_id,
+            joined_at: g.joined_at,
+            groups: g.groups ? {
+              id: g.groups.id,
+              vendor_id: g.groups.vendor_id,
+              name: g.groups.name,
+              academic_year: g.groups.academic_year,
+              is_active: g.groups.is_active,
+              created_at: g.groups.created_at
+            } as Group : undefined
+          } as GroupMember)),
+          user_stats: student.user_stats as UserStats[]
+        } as StudentData)) || [];
 
         setStudents(filteredStudents);
       } catch (error) {
@@ -142,12 +191,12 @@ export const UsersList = () => {
       student.email.toLowerCase().includes(searchTerm.toLowerCase());
       
     const matchesGroup = groupFilter === "all" || 
-      student.groups?.some(g => g.groups.id.toString() === groupFilter);
+      student.groups?.some(g => g.groups?.id.toString() === groupFilter);
       
     return matchesSearch && matchesGroup;
   });
 
-  const getActivityStatus = (lastActive: string) => {
+  const getActivityStatus = (lastActive: string | undefined) => {
     if (!lastActive) return { color: "text-gray-500", text: "Brak aktywności" };
     
     const daysSinceActive = Math.floor(
@@ -219,8 +268,8 @@ export const UsersList = () => {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
           {filteredStudents.map((student) => {
-            const stats = student.user_stats?.[0] || {};
-            const activityStatus = getActivityStatus(stats.last_active);
+            const stats: UserStats | undefined = student.user_stats?.[0];
+            const activityStatus = getActivityStatus(stats?.last_active);
             
             return (
               <Card key={student.id} className="hover:shadow-md transition-shadow">
@@ -251,9 +300,9 @@ export const UsersList = () => {
                         Grupa
                       </span>
                       <div className="flex gap-1">
-                        {student.groups?.slice(0, 2).map((g: any) => (
-                          <Badge key={g.groups.id} variant="outline" className="text-xs">
-                            {g.groups.name}
+                        {student.groups?.slice(0, 2).map((g: GroupMember) => (
+                          <Badge key={g.groups?.id} variant="outline" className="text-xs">
+                            {g.groups?.name}
                           </Badge>
                         ))}
                         {student.groups?.length > 2 && (
@@ -270,9 +319,9 @@ export const UsersList = () => {
                         Punkty
                       </span>
                       <span className="font-medium">
-                        {stats.total_points || 0}
+                        {stats?.total_points || 0}
                         <span className="text-xs text-muted-foreground ml-1">
-                          (poz. {stats.current_level || 1})
+                          (poz. {stats?.current_level || 1})
                         </span>
                       </span>
                     </div>
@@ -283,7 +332,7 @@ export const UsersList = () => {
                         Quizy
                       </span>
                       <span className="font-medium">
-                        {stats.quizzes_completed || 0}
+                        {stats?.quizzes_completed || 0}
                       </span>
                     </div>
                     
@@ -297,7 +346,7 @@ export const UsersList = () => {
                       </span>
                     </div>
                     
-                    {stats.daily_streak > 0 && (
+                    {stats && stats.daily_streak > 0 && (
                       <div className="flex items-center justify-between text-sm">
                         <span className="text-muted-foreground flex items-center gap-1">
                           <TrendingUp className="w-3 h-3" />

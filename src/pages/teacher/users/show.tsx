@@ -25,26 +25,23 @@ import { SubPage } from "@/components/layout";
 import { useParams } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { supabaseClient } from "@/utility";
-
-interface CourseProgress {
-  course_id: number;
-  course_title: string;
-  completed_activities: number;
-  total_activities: number;
-  avg_score: number;
-  last_activity: string;
-  quizzes_passed: number;
-  quizzes_failed: number;
-}
+import type { 
+  StudentData, 
+  TeacherIdentity, 
+  CourseProgress, 
+  ActivityProgress,
+  UserStats,
+  GroupMember 
+} from '../types';
 
 export const UsersShow = () => {
   const { list } = useNavigation();
   const { id } = useParams();
-  const { data: identity } = useGetIdentity<any>();
+  const { data: identity } = useGetIdentity<TeacherIdentity>();
   const [courseProgress, setCourseProgress] = useState<CourseProgress[]>([]);
-  const [recentActivities, setRecentActivities] = useState<any[]>([]);
+  const [recentActivities, setRecentActivities] = useState<ActivityProgress[]>([]);
 
-  const { data: userData, isLoading: userLoading } = useOne({
+  const { data: userData, isLoading: userLoading } = useOne<StudentData>({
     resource: "users",
     id: id as string,
     meta: {
@@ -53,7 +50,9 @@ export const UsersShow = () => {
         user_stats(*),
         groups:group_members(
           group_id,
-          groups(id, name)
+          user_id,
+          joined_at,
+          groups(id, name, academic_year, vendor_id, is_active, created_at)
         )
       `,
     },
@@ -72,7 +71,7 @@ export const UsersShow = () => {
         });
 
       if (progressData) {
-        setCourseProgress(progressData);
+        setCourseProgress(progressData as CourseProgress[]);
       }
 
       // Ostatnie aktywności
@@ -84,13 +83,36 @@ export const UsersShow = () => {
             id,
             title,
             type,
+            topic_id,
+            position,
+            is_published,
+            content,
+            duration_min,
+            passing_score,
+            time_limit,
+            max_attempts,
+            created_at,
             topics!inner(
               id,
               title,
+              course_id,
+              position,
+              is_published,
+              created_at,
               courses!inner(
                 id,
                 title,
-                course_access!inner(teacher_id)
+                vendor_id,
+                description,
+                icon_emoji,
+                is_published,
+                created_at,
+                course_access!inner(
+                  course_id,
+                  group_id,
+                  teacher_id,
+                  assigned_at
+                )
               )
             )
           )
@@ -101,7 +123,7 @@ export const UsersShow = () => {
         .limit(10);
 
       if (activitiesData) {
-        setRecentActivities(activitiesData);
+        setRecentActivities(activitiesData as ActivityProgress[]);
       }
     };
 
@@ -119,7 +141,7 @@ export const UsersShow = () => {
   }
 
   const user = userData?.data;
-  const stats = user?.user_stats?.[0] || {};
+  const stats: UserStats | undefined = user?.user_stats?.[0];
 
   const getScoreColor = (score: number) => {
     if (score >= 80) return "text-green-600";
@@ -127,7 +149,7 @@ export const UsersShow = () => {
     return "text-red-600";
   };
 
-  const getActivityTypeIcon = (type: string) => {
+  const getActivityTypeIcon = (type: 'quiz' | 'material') => {
     return type === 'quiz' ? '📝' : '📚';
   };
 
@@ -140,12 +162,12 @@ export const UsersShow = () => {
 
       <FlexBox>
         <div>
-          <Lead title={user?.full_name} description={user?.email} />
+          <Lead title={user?.full_name || ''} description={user?.email || ''} />
           <div className="flex gap-2 mt-2">
-            {user?.groups?.map((g: any) => (
-              <Badge key={g.groups.id} variant="outline">
+            {user?.groups?.map((g: GroupMember) => (
+              <Badge key={g.groups?.id} variant="outline">
                 <Users className="w-3 h-3 mr-1" />
-                {g.groups.name}
+                {g.groups?.name}
               </Badge>
             ))}
           </div>
@@ -167,22 +189,22 @@ export const UsersShow = () => {
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
                 <div className="text-center p-4 bg-blue-50 dark:bg-blue-950/20 rounded-lg">
                   <Trophy className="w-8 h-8 mx-auto mb-2 text-blue-600" />
-                  <p className="text-2xl font-bold">{stats.total_points || 0}</p>
+                  <p className="text-2xl font-bold">{stats?.total_points || 0}</p>
                   <p className="text-sm text-muted-foreground">Punkty</p>
                 </div>
                 <div className="text-center p-4 bg-purple-50 dark:bg-purple-950/20 rounded-lg">
                   <Target className="w-8 h-8 mx-auto mb-2 text-purple-600" />
-                  <p className="text-2xl font-bold">{stats.current_level || 1}</p>
+                  <p className="text-2xl font-bold">{stats?.current_level || 1}</p>
                   <p className="text-sm text-muted-foreground">Poziom</p>
                 </div>
                 <div className="text-center p-4 bg-green-50 dark:bg-green-950/20 rounded-lg">
                   <Award className="w-8 h-8 mx-auto mb-2 text-green-600" />
-                  <p className="text-2xl font-bold">{stats.quizzes_completed || 0}</p>
+                  <p className="text-2xl font-bold">{stats?.quizzes_completed || 0}</p>
                   <p className="text-sm text-muted-foreground">Ukończone quizy</p>
                 </div>
                 <div className="text-center p-4 bg-orange-50 dark:bg-orange-950/20 rounded-lg">
                   <TrendingUp className="w-8 h-8 mx-auto mb-2 text-orange-600" />
-                  <p className="text-2xl font-bold">{stats.daily_streak || 0}</p>
+                  <p className="text-2xl font-bold">{stats?.daily_streak || 0}</p>
                   <p className="text-sm text-muted-foreground">Dni z rzędu</p>
                 </div>
               </div>
@@ -264,13 +286,13 @@ export const UsersShow = () => {
             <CardContent>
               <div className="space-y-3">
                 {recentActivities.map((activity) => (
-                  <div key={activity.id} className="flex items-center justify-between p-3 border rounded-lg">
+                  <div key={`${activity.user_id}-${activity.activity_id}`} className="flex items-center justify-between p-3 border rounded-lg">
                     <div className="flex items-center gap-3">
-                      <span className="text-2xl">{getActivityTypeIcon(activity.activities.type)}</span>
+                      <span className="text-2xl">{getActivityTypeIcon(activity.activities!.type)}</span>
                       <div>
-                        <p className="font-medium text-sm">{activity.activities.title}</p>
+                        <p className="font-medium text-sm">{activity.activities!.title}</p>
                         <p className="text-xs text-muted-foreground">
-                          {activity.activities.topics.courses.title} • {activity.activities.topics.title}
+                          {activity.activities!.topics!.courses!.title} • {activity.activities!.topics!.title}
                         </p>
                       </div>
                     </div>
@@ -311,13 +333,13 @@ export const UsersShow = () => {
               <div>
                 <p className="text-sm text-muted-foreground">Łączny czas</p>
                 <p className="text-xl font-bold">
-                  {Math.round((stats.total_time_spent || 0) / 60)}h {(stats.total_time_spent || 0) % 60}min
+                  {Math.round((stats?.total_time_spent || 0) / 60)}h {(stats?.total_time_spent || 0) % 60}min
                 </p>
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Ostatnia aktywność</p>
                 <p className="text-sm font-medium">
-                  {stats.last_active
+                  {stats?.last_active
                     ? new Date(stats.last_active).toLocaleDateString("pl-PL", {
                         weekday: 'long',
                         year: 'numeric',
@@ -341,16 +363,16 @@ export const UsersShow = () => {
             <CardContent className="space-y-3">
               <div className="flex justify-between items-center">
                 <span className="text-sm">Ukończone</span>
-                <span className="font-bold">{stats.quizzes_completed || 0}</span>
+                <span className="font-bold">{stats?.quizzes_completed || 0}</span>
               </div>
               <div className="flex justify-between items-center">
                 <span className="text-sm">Wyniki 100%</span>
-                <span className="font-bold text-green-600">{stats.perfect_scores || 0}</span>
+                <span className="font-bold text-green-600">{stats?.perfect_scores || 0}</span>
               </div>
               <div className="flex justify-between items-center">
                 <span className="text-sm">Współczynnik</span>
                 <span className="font-bold">
-                  {stats.quizzes_completed > 0 
+                  {stats && stats.quizzes_completed > 0 
                     ? `${Math.round((stats.perfect_scores / stats.quizzes_completed) * 100)}%`
                     : '0%'
                   }
@@ -371,7 +393,7 @@ export const UsersShow = () => {
               <div>
                 <p className="text-sm text-muted-foreground">Dołączył</p>
                 <p className="text-sm font-medium">
-                  {new Date(user?.created_at).toLocaleDateString("pl-PL", {
+                  {user?.created_at && new Date(user.created_at).toLocaleDateString("pl-PL", {
                     year: 'numeric',
                     month: 'long',
                     day: 'numeric'
@@ -381,8 +403,8 @@ export const UsersShow = () => {
               <div>
                 <p className="text-sm text-muted-foreground">Dni od rejestracji</p>
                 <p className="text-sm font-medium">
-                  {Math.floor(
-                    (new Date().getTime() - new Date(user?.created_at).getTime()) / 
+                  {user?.created_at && Math.floor(
+                    (new Date().getTime() - new Date(user.created_at).getTime()) / 
                     (1000 * 60 * 60 * 24)
                   )}
                 </p>
