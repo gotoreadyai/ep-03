@@ -40,97 +40,188 @@ export const UsersShow = () => {
   const { data: identity } = useGetIdentity<TeacherIdentity>();
   const [courseProgress, setCourseProgress] = useState<CourseProgress[]>([]);
   const [recentActivities, setRecentActivities] = useState<ActivityProgress[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [studentData, setStudentData] = useState<StudentData | null>(null);
 
-  const { data: userData, isLoading: userLoading } = useOne<StudentData>({
-    resource: "users",
-    id: id as string,
-    meta: {
-      select: `
-        *,
-        user_stats(*),
-        groups:group_members(
-          group_id,
-          user_id,
-          joined_at,
-          groups(id, name, academic_year, vendor_id, is_active, created_at)
-        )
-      `,
-    },
-  });
+  // Pobierz dane ucznia
+  useEffect(() => {
+    const fetchStudentData = async () => {
+      if (!id) return;
+
+      setLoading(true);
+      try {
+        const { data, error } = await supabaseClient
+          .from('users')
+          .select(`
+            *,
+            user_stats(*),
+            group_members(
+              group_id,
+              user_id,
+              joined_at,
+              groups(*)
+            )
+          `)
+          .eq('id', id)
+          .single();
+
+        if (error) throw error;
+
+        if (data) {
+          // Normalizuj dane do formatu StudentData
+          const formatted: StudentData = {
+            id: data.id,
+            email: data.email,
+            full_name: data.full_name,
+            vendor_id: data.vendor_id,
+            role: data.role,
+            is_active: data.is_active,
+            created_at: data.created_at,
+            groups: data.group_members?.map((gm: any) => ({
+              group_id: gm.group_id,
+              user_id: gm.user_id,
+              joined_at: gm.joined_at,
+              groups: gm.groups
+            })) || [],
+            user_stats: data.user_stats ? (Array.isArray(data.user_stats) ? data.user_stats : [data.user_stats]) : []
+          };
+          
+          setStudentData(formatted);
+        }
+      } catch (error) {
+        console.error('Error fetching student data:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchStudentData();
+  }, [id]);
 
   // Pobierz postępy ucznia w kursach nauczyciela
   useEffect(() => {
     const fetchStudentProgress = async () => {
       if (!id || !identity?.id) return;
 
-      // Postępy w kursach
-      const { data: progressData } = await supabaseClient
-        .rpc('get_student_course_progress', {
-          p_student_id: id,
-          p_teacher_id: identity.id
-        });
+      try {
+        // Pobierz kursy nauczyciela
+        const { data: teacherCourses } = await supabaseClient
+          .from('course_access')
+          .select('course_id')
+          .eq('teacher_id', identity.id);
 
-      if (progressData) {
-        setCourseProgress(progressData as CourseProgress[]);
-      }
+        if (!teacherCourses || teacherCourses.length === 0) return;
 
-      // Ostatnie aktywności
-      const { data: activitiesData } = await supabaseClient
-        .from('activity_progress')
-        .select(`
-          *,
-          activities!inner(
+        const courseIds = teacherCourses.map(c => c.course_id);
+
+        // Pobierz postępy ucznia w tych kursach
+        const { data: progressData } = await supabaseClient
+          .from('courses')
+          .select(`
             id,
             title,
-            type,
-            topic_id,
-            position,
-            is_published,
-            content,
-            duration_min,
-            passing_score,
-            time_limit,
-            max_attempts,
-            created_at,
             topics!inner(
               id,
               title,
-              course_id,
-              position,
-              is_published,
-              created_at,
-              courses!inner(
+              activities!inner(
                 id,
-                title,
-                vendor_id,
-                description,
-                icon_emoji,
-                is_published,
-                created_at,
-                course_access!inner(
-                  course_id,
-                  group_id,
-                  teacher_id,
-                  assigned_at
+                type,
+                activity_progress!left(
+                  completed_at,
+                  score,
+                  attempts,
+                  time_spent
                 )
               )
             )
-          )
-        `)
-        .eq('user_id', id)
-        .eq('activities.topics.courses.course_access.teacher_id', identity.id)
-        .order('completed_at', { ascending: false })
-        .limit(10);
+          `)
+          .in('id', courseIds)
+          .eq('topics.activities.activity_progress.user_id', id);
 
-      if (activitiesData) {
-        setRecentActivities(activitiesData as ActivityProgress[]);
+        if (progressData) {
+          // Przetworz dane na format CourseProgress
+          const formatted: CourseProgress[] = progressData.map((course: any) => {
+            let totalActivities = 0;
+            let completedActivities = 0;
+            let totalScore = 0;
+            let scoreCount = 0;
+            let quizzesPassed = 0;
+            let quizzesFailed = 0;
+            let lastActivity: string | null = null;
+
+            course.topics?.forEach((topic: any) => {
+              topic.activities?.forEach((activity: any) => {
+                totalActivities++;
+                
+                const progress = activity.activity_progress?.[0];
+                if (progress?.completed_at) {
+                  completedActivities++;
+                  // Aktualizuj ostatnią aktywność
+                  if (!lastActivity || new Date(progress.completed_at) > new Date(lastActivity)) {
+                    lastActivity = progress.completed_at;
+                  }
+                }
+                
+                if (activity.type === 'quiz' && progress?.score !== null) {
+                  totalScore += progress.score;
+                  scoreCount++;
+                  
+                  if (progress.score >= 70) {
+                    quizzesPassed++;
+                  } else if (progress.attempts > 0) {
+                    quizzesFailed++;
+                  }
+                }
+              });
+            });
+
+            return {
+              course_id: course.id,
+              course_title: course.title,
+              total_activities: totalActivities,
+              completed_activities: completedActivities,
+              avg_score: scoreCount > 0 ? Math.round(totalScore / scoreCount) : 0,
+              quizzes_passed: quizzesPassed,
+              quizzes_failed: quizzesFailed,
+              last_activity: lastActivity || ''
+            };
+          });
+
+          setCourseProgress(formatted);
+        }
+
+        // Pobierz ostatnie aktywności
+        const { data: activitiesData } = await supabaseClient
+          .from('activity_progress')
+          .select(`
+            *,
+            activities(
+              id,
+              title,
+              type,
+              topics(
+                title,
+                courses(title)
+              )
+            )
+          `)
+          .eq('user_id', id)
+          .order('completed_at', { ascending: false, nullsFirst: false })
+          .limit(10);
+
+        if (activitiesData) {
+          setRecentActivities(activitiesData as ActivityProgress[]);
+        }
+
+      } catch (error) {
+        console.error('Error fetching student progress:', error);
       }
     };
 
     fetchStudentProgress();
   }, [id, identity]);
 
-  if (userLoading) {
+  if (loading) {
     return (
       <SubPage>
         <div className="flex items-center justify-center min-h-[400px]">
@@ -140,7 +231,7 @@ export const UsersShow = () => {
     );
   }
 
-  const user = userData?.data;
+  const user = studentData;
   const stats: UserStats | undefined = user?.user_stats?.[0];
 
   const getScoreColor = (score: number) => {
@@ -151,6 +242,25 @@ export const UsersShow = () => {
 
   const getActivityTypeIcon = (type: 'quiz' | 'material') => {
     return type === 'quiz' ? '📝' : '📚';
+  };
+
+  const formatTime = (minutes: number) => {
+    const hours = Math.floor(minutes / 60);
+    const mins = minutes % 60;
+    return hours > 0 ? `${hours}h ${mins}min` : `${mins}min`;
+  };
+
+  const getActivityStatusColor = (lastActive: string | undefined) => {
+    if (!lastActive) return "text-gray-500";
+    
+    const daysSinceActive = Math.floor(
+      (new Date().getTime() - new Date(lastActive).getTime()) / (1000 * 60 * 60 * 24)
+    );
+    
+    if (daysSinceActive === 0) return "text-green-600";
+    if (daysSinceActive <= 7) return "text-yellow-600";
+    if (daysSinceActive <= 30) return "text-orange-600";
+    return "text-red-600";
   };
 
   return (
@@ -167,9 +277,14 @@ export const UsersShow = () => {
             {user?.groups?.map((g: GroupMember) => (
               <Badge key={g.groups?.id} variant="outline">
                 <Users className="w-3 h-3 mr-1" />
-                {g.groups?.name}
+                {g.groups?.name} ({g.groups?.academic_year})
               </Badge>
             ))}
+            {!user?.is_active && (
+              <Badge variant="destructive">
+                Nieaktywny
+              </Badge>
+            )}
           </div>
         </div>
       </FlexBox>
@@ -206,6 +321,33 @@ export const UsersShow = () => {
                   <TrendingUp className="w-8 h-8 mx-auto mb-2 text-orange-600" />
                   <p className="text-2xl font-bold">{stats?.daily_streak || 0}</p>
                   <p className="text-sm text-muted-foreground">Dni z rzędu</p>
+                </div>
+              </div>
+
+              {/* Dodatkowe statystyki */}
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-4 pt-4 border-t">
+                <div>
+                  <p className="text-sm text-muted-foreground">Perfekcyjne wyniki</p>
+                  <p className="text-lg font-semibold text-green-600">
+                    {stats?.perfect_scores || 0}
+                    {stats && stats.quizzes_completed > 0 && (
+                      <span className="text-sm text-muted-foreground ml-1">
+                        ({Math.round((stats.perfect_scores / stats.quizzes_completed) * 100)}%)
+                      </span>
+                    )}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">Czas nauki</p>
+                  <p className="text-lg font-semibold">
+                    {stats ? formatTime(stats.total_time_spent) : '0min'}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">Punkty/h (idle)</p>
+                  <p className="text-lg font-semibold">
+                    {stats?.idle_points_rate || 1}
+                  </p>
                 </div>
               </div>
             </CardContent>
@@ -245,8 +387,8 @@ export const UsersShow = () => {
                       </div>
                       <div>
                         <p className="text-muted-foreground">Średni wynik</p>
-                        <p className={`font-medium ${getScoreColor(course.avg_score || 0)}`}>
-                          {course.avg_score ? `${Math.round(course.avg_score)}%` : 'Brak'}
+                        <p className={`font-medium ${course.avg_score > 0 ? getScoreColor(course.avg_score) : ''}`}>
+                          {course.avg_score > 0 ? `${course.avg_score}%` : 'Brak'}
                         </p>
                       </div>
                       <div>
@@ -254,15 +396,23 @@ export const UsersShow = () => {
                         <div className="flex items-center gap-2">
                           <span className="text-green-600 flex items-center">
                             <CheckCircle className="w-3 h-3 mr-1" />
-                            {course.quizzes_passed || 0}
+                            {course.quizzes_passed}
                           </span>
                           <span className="text-red-600 flex items-center">
                             <XCircle className="w-3 h-3 mr-1" />
-                            {course.quizzes_failed || 0}
+                            {course.quizzes_failed}
                           </span>
                         </div>
                       </div>
                     </div>
+                    
+                    {course.last_activity && (
+                      <div className="pt-2 border-t">
+                        <p className="text-xs text-muted-foreground">
+                          Ostatnia aktywność: {new Date(course.last_activity).toLocaleDateString('pl-PL')}
+                        </p>
+                      </div>
+                    )}
                   </div>
                 );
               })}
@@ -288,11 +438,13 @@ export const UsersShow = () => {
                 {recentActivities.map((activity) => (
                   <div key={`${activity.user_id}-${activity.activity_id}`} className="flex items-center justify-between p-3 border rounded-lg">
                     <div className="flex items-center gap-3">
-                      <span className="text-2xl">{getActivityTypeIcon(activity.activities!.type)}</span>
+                      <span className="text-2xl">
+                        {activity.activities && getActivityTypeIcon(activity.activities.type)}
+                      </span>
                       <div>
-                        <p className="font-medium text-sm">{activity.activities!.title}</p>
+                        <p className="font-medium text-sm">{activity.activities?.title}</p>
                         <p className="text-xs text-muted-foreground">
-                          {activity.activities!.topics!.courses!.title} • {activity.activities!.topics!.title}
+                          {activity.activities?.topics?.courses?.title} • {activity.activities?.topics?.title}
                         </p>
                       </div>
                     </div>
@@ -303,8 +455,16 @@ export const UsersShow = () => {
                         </p>
                       )}
                       <p className="text-xs text-muted-foreground">
-                        {new Date(activity.completed_at || activity.started_at).toLocaleDateString('pl-PL')}
+                        {activity.completed_at 
+                          ? new Date(activity.completed_at).toLocaleDateString('pl-PL')
+                          : new Date(activity.started_at).toLocaleDateString('pl-PL')
+                        }
                       </p>
+                      {activity.attempts > 1 && (
+                        <p className="text-xs text-muted-foreground">
+                          Próba {activity.attempts}
+                        </p>
+                      )}
                     </div>
                   </div>
                 ))}
@@ -333,12 +493,12 @@ export const UsersShow = () => {
               <div>
                 <p className="text-sm text-muted-foreground">Łączny czas</p>
                 <p className="text-xl font-bold">
-                  {Math.round((stats?.total_time_spent || 0) / 60)}h {(stats?.total_time_spent || 0) % 60}min
+                  {stats ? formatTime(stats.total_time_spent) : '0min'}
                 </p>
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Ostatnia aktywność</p>
-                <p className="text-sm font-medium">
+                <p className={`text-sm font-medium ${getActivityStatusColor(stats?.last_active)}`}>
                   {stats?.last_active
                     ? new Date(stats.last_active).toLocaleDateString("pl-PL", {
                         weekday: 'long',
@@ -347,6 +507,20 @@ export const UsersShow = () => {
                         day: 'numeric'
                       })
                     : "Brak aktywności"}
+                </p>
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground">Ostatnie pobieranie idle</p>
+                <p className="text-sm font-medium">
+                  {stats?.last_idle_claim
+                    ? new Date(stats.last_idle_claim).toLocaleString("pl-PL", {
+                        year: 'numeric',
+                        month: 'short',
+                        day: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit'
+                      })
+                    : "Nigdy"}
                 </p>
               </div>
             </CardContent>
@@ -378,6 +552,15 @@ export const UsersShow = () => {
                   }
                 </span>
               </div>
+              <div className="flex justify-between items-center">
+                <span className="text-sm">Średni czas/quiz</span>
+                <span className="font-bold">
+                  {stats && stats.quizzes_completed > 0 
+                    ? formatTime(Math.round(stats.total_time_spent / stats.quizzes_completed))
+                    : '0min'
+                  }
+                </span>
+              </div>
             </CardContent>
           </Card>
 
@@ -406,8 +589,28 @@ export const UsersShow = () => {
                   {user?.created_at && Math.floor(
                     (new Date().getTime() - new Date(user.created_at).getTime()) / 
                     (1000 * 60 * 60 * 24)
+                  )} dni
+                </p>
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground">Status konta</p>
+                <p className="text-sm font-medium">
+                  {user?.is_active ? (
+                    <span className="text-green-600">✓ Aktywny</span>
+                  ) : (
+                    <span className="text-red-600">✗ Nieaktywny</span>
                   )}
                 </p>
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground">Grupy</p>
+                <div className="text-sm font-medium">
+                  {user?.groups?.map((g: GroupMember) => (
+                    <div key={g.groups?.id}>
+                      {g.groups?.name} ({g.groups?.academic_year})
+                    </div>
+                  ))}
+                </div>
               </div>
             </CardContent>
           </Card>

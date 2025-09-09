@@ -23,22 +23,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { supabaseClient } from "@/utility";
 import type { StudentData, TeacherIdentity, Group, GroupMember, UserStats } from '../types';
-
-// Typ dla danych z zapytania course_access
-interface CourseAccessWithGroup {
-  group_id: number | null;
-  groups: {
-    id: number;
-    name: string;
-    academic_year: string;
-    vendor_id?: number;
-    is_active?: boolean;
-    created_at?: string;
-  } | null;
-}
 
 export const UsersList = () => {
   const { show } = useNavigation();
@@ -49,132 +36,113 @@ export const UsersList = () => {
   const [students, setStudents] = useState<StudentData[]>([]);
   const [loading, setLoading] = useState(true);
   
-  // Pobierz uczniów nauczyciela
   useEffect(() => {
     const fetchTeacherStudents = async () => {
-      if (!identity?.id) return;
+      if (!identity?.id) {
+        return;
+      }
       
       setLoading(true);
+      
       try {
-        // 1. Najpierw pobierz grupy, które mają kursy prowadzone przez nauczyciela
-        const { data: teacherGroupsData, error: groupsError } = await supabaseClient
+        // 1. Pobierz kursy nauczyciela
+        const { data: teacherCoursesData, error: coursesError } = await supabaseClient
           .from('course_access')
-          .select(`
-            group_id,
-            groups!inner(
-              id,
-              name,
-              academic_year,
-              vendor_id,
-              is_active,
-              created_at
-            )
-          `)
-          .eq('teacher_id', identity.id)
-          .not('group_id', 'is', null) as { 
-            data: CourseAccessWithGroup[] | null; 
-            error: any 
-          };
+          .select('course_id')
+          .eq('teacher_id', identity.id);
 
-        if (groupsError) throw groupsError;
+        if (coursesError) throw coursesError;
 
-        // Usuń duplikaty grup
-        const uniqueGroupsMap = new Map<number, Group>();
-        teacherGroupsData?.forEach(item => {
-          if (item.group_id && item.groups) {
-            const group: Group = {
-              id: item.groups.id,
-              name: item.groups.name,
-              academic_year: item.groups.academic_year,
-              vendor_id: item.groups.vendor_id || 0,
-              is_active: item.groups.is_active ?? true,
-              created_at: item.groups.created_at || new Date().toISOString()
-            };
-            uniqueGroupsMap.set(group.id, group);
-          }
-        });
-        const uniqueGroups = Array.from(uniqueGroupsMap.values());
-        
-        setTeacherGroups(uniqueGroups);
-
-        // 2. Pobierz ID wszystkich grup nauczyciela
-        const groupIds = uniqueGroups.map(g => g.id);
-
-        if (groupIds.length === 0) {
+        if (!teacherCoursesData || teacherCoursesData.length === 0) {
+          setTeacherGroups([]);
           setStudents([]);
           setLoading(false);
           return;
         }
 
-        // 3. Pobierz uczniów z tych grup
+        const courseIds = [...new Set(teacherCoursesData.map(ca => ca.course_id))];
+
+        // 2. Pobierz grupy które mają dostęp do tych kursów
+        const { data: groupAccessData, error: groupAccessError } = await supabaseClient
+          .from('course_access')
+          .select('group_id')
+          .in('course_id', courseIds)
+          .not('group_id', 'is', null);
+
+        if (groupAccessError) throw groupAccessError;
+
+        const groupIds = [...new Set(groupAccessData?.map(ga => ga.group_id).filter(Boolean) || [])];
+
+        if (groupIds.length === 0) {
+          setTeacherGroups([]);
+          setStudents([]);
+          setLoading(false);
+          return;
+        }
+
+        // 3. Pobierz szczegóły grup
+        const { data: groupsData, error: groupsError } = await supabaseClient
+          .from('groups')
+          .select('*')
+          .in('id', groupIds)
+          .order('name');
+
+        if (groupsError) throw groupsError;
+
+        const groups: Group[] = groupsData?.map(g => ({
+          id: g.id,
+          name: g.name,
+          academic_year: g.academic_year,
+          vendor_id: g.vendor_id || 0,
+          is_active: g.is_active ?? true,
+          created_at: g.created_at || new Date().toISOString()
+        })) || [];
+        
+        setTeacherGroups(groups);
+
+        // 4. Pobierz wszystkich uczniów z grup za jednym razem
         const { data: studentsData, error: studentsError } = await supabaseClient
           .from('users')
           .select(`
-            id,
-            email,
-            full_name,
-            vendor_id,
-            role,
-            is_active,
-            created_at,
-            groups:group_members!inner(
+            *,
+            user_stats(*),
+            group_members!inner(
               group_id,
               user_id,
               joined_at,
-              groups!inner(
-                id,
-                name,
-                academic_year,
-                vendor_id,
-                is_active,
-                created_at
-              )
-            ),
-            user_stats!left(
-              user_id,
-              total_points,
-              current_level,
-              quizzes_completed,
-              last_active,
-              daily_streak,
-              perfect_scores,
-              total_time_spent,
-              idle_points_rate,
-              last_idle_claim,
-              updated_at
+              groups!inner(*)
             )
           `)
+          .in('group_members.group_id', groupIds)
           .eq('role', 'student')
-          .in('groups.group_id', groupIds)
           .order('full_name');
 
         if (studentsError) throw studentsError;
 
-        // Filtruj tylko uczniów z grup nauczyciela i mapuj na StudentData
-        const filteredStudents = studentsData?.filter(student => 
-          student.groups?.some((g: any) => groupIds.includes(g.groups?.id))
-        ).map(student => ({
-          ...student,
-          role: student.role as 'student' | 'teacher' | 'admin',
-          groups: student.groups.map((g: any) => ({
-            group_id: g.group_id,
-            user_id: g.user_id,
-            joined_at: g.joined_at,
-            groups: g.groups ? {
-              id: g.groups.id,
-              vendor_id: g.groups.vendor_id,
-              name: g.groups.name,
-              academic_year: g.groups.academic_year,
-              is_active: g.groups.is_active,
-              created_at: g.groups.created_at
-            } as Group : undefined
-          } as GroupMember)),
-          user_stats: student.user_stats as UserStats[]
-        } as StudentData)) || [];
+        // 5. Przekształć dane na format StudentData
+        const formattedStudents: StudentData[] = studentsData?.map(user => ({
+          id: user.id,
+          email: user.email,
+          full_name: user.full_name,
+          vendor_id: user.vendor_id,
+          role: user.role,
+          is_active: user.is_active,
+          created_at: user.created_at,
+          groups: user.group_members?.map((gm: any) => ({
+            group_id: gm.group_id,
+            user_id: gm.user_id,
+            joined_at: gm.joined_at,
+            groups: gm.groups
+          })) || [],
+          // Poprawka: user_stats zwraca obiekt lub tablicę - normalizujemy do tablicy
+          user_stats: user.user_stats ? (Array.isArray(user.user_stats) ? user.user_stats : [user.user_stats]) : []
+        })) || [];
 
-        setStudents(filteredStudents);
+        setStudents(formattedStudents);
+
       } catch (error) {
         console.error('Error fetching students:', error);
+        setTeacherGroups([]);
         setStudents([]);
       } finally {
         setLoading(false);
@@ -184,17 +152,19 @@ export const UsersList = () => {
     fetchTeacherStudents();
   }, [identity]);
 
-  // Filtrowanie
-  const filteredStudents = students.filter(student => {
-    const matchesSearch = !searchTerm || 
-      student.full_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      student.email.toLowerCase().includes(searchTerm.toLowerCase());
-      
-    const matchesGroup = groupFilter === "all" || 
-      student.groups?.some(g => g.groups?.id.toString() === groupFilter);
-      
-    return matchesSearch && matchesGroup;
-  });
+  // Użyj useMemo dla filtrowania
+  const filteredStudents = useMemo(() => {
+    return students.filter(student => {
+      const matchesSearch = !searchTerm || 
+        student.full_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        student.email.toLowerCase().includes(searchTerm.toLowerCase());
+        
+      const matchesGroup = groupFilter === "all" || 
+        student.groups?.some(g => g.groups?.id.toString() === groupFilter);
+        
+      return matchesSearch && matchesGroup;
+    });
+  }, [students, searchTerm, groupFilter]);
 
   const getActivityStatus = (lastActive: string | undefined) => {
     if (!lastActive) return { color: "text-gray-500", text: "Brak aktywności" };
@@ -224,8 +194,8 @@ export const UsersList = () => {
     <SubPage>
       <FlexBox>
         <Lead
-          title="Moi uczniowie"
-          description={`Uczniowie z Twoich grup (${teacherGroups.length} ${teacherGroups.length === 1 ? 'grupa' : 'grup'})`}
+          title="Uczniowie z moich kursów"
+          description={`Uczniowie z grup które mają dostęp do Twoich kursów (${teacherGroups.length} ${teacherGroups.length === 1 ? 'grupa' : teacherGroups.length < 5 ? 'grupy' : 'grup'})`}
         />
       </FlexBox>
 
@@ -240,28 +210,41 @@ export const UsersList = () => {
           />
         </div>
         
-        <Select value={groupFilter} onValueChange={setGroupFilter}>
-          <SelectTrigger className="w-[200px]">
-            <SelectValue placeholder="Filtruj po grupie" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Wszystkie grupy</SelectItem>
-            {teacherGroups.map((group) => (
-              <SelectItem key={group.id} value={group.id.toString()}>
-                {group.name} ({group.academic_year})
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        {teacherGroups.length > 0 && (
+          <Select value={groupFilter} onValueChange={setGroupFilter}>
+            <SelectTrigger className="w-[200px]">
+              <SelectValue placeholder="Filtruj po grupie" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Wszystkie grupy</SelectItem>
+              {teacherGroups.map((group) => (
+                <SelectItem key={group.id} value={group.id.toString()}>
+                  {group.name} ({group.academic_year})
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        )}
       </FlexBox>
 
       {teacherGroups.length === 0 ? (
         <Card>
           <CardContent className="p-12 text-center">
             <AlertCircle className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
-            <p className="text-lg font-medium mb-2">Nie masz przypisanych grup</p>
+            <p className="text-lg font-medium mb-2">Nie masz przypisanych kursów</p>
             <p className="text-muted-foreground">
-              Poproś administratora o przypisanie Cię do kursów z grupami
+              Poproś administratora o przypisanie Cię do kursów.
+              Administrator może to zrobić w module "Zarządzanie dostępem" → "Dostęp do kursów"
+            </p>
+          </CardContent>
+        </Card>
+      ) : filteredStudents.length === 0 && students.length === 0 ? (
+        <Card>
+          <CardContent className="p-12 text-center">
+            <Users className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
+            <p className="text-lg font-medium mb-2">Brak uczniów w grupach z Twoimi kursami</p>
+            <p className="text-muted-foreground">
+              Uczniowie pojawią się tutaj, gdy administrator przypisze grupy do Twoich kursów
             </p>
           </CardContent>
         </Card>
@@ -299,7 +282,7 @@ export const UsersList = () => {
                         <Users className="w-3 h-3" />
                         Grupa
                       </span>
-                      <div className="flex gap-1">
+                      <div className="flex gap-1 flex-wrap justify-end">
                         {student.groups?.slice(0, 2).map((g: GroupMember) => (
                           <Badge key={g.groups?.id} variant="outline" className="text-xs">
                             {g.groups?.name}
