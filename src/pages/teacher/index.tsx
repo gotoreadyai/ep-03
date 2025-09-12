@@ -7,7 +7,7 @@ import { lazy, Suspense } from "react";
 import { Route, Routes, Outlet, Navigate } from "react-router-dom";
 import { Authenticated, useGetIdentity } from "@refinedev/core";
 import { CatchAllNavigate } from "@refinedev/react-router";
-import { useEffect } from "react";
+
 
 import { TeacherLayout } from "./TeacherLayout";
 
@@ -19,9 +19,9 @@ import { groupsRoutes } from "./groups";
 import { usersRoutes } from "./users";
 
 import { reportsRoutes } from "./reports";
-import { courseStructureRoutes } from "./course-structure-wizard";
-import { educationalMaterialRoutes } from "./educational-material-wizard";
-import { quizWizardRoutes } from "./quiz-wizard";
+import { courseStructureRoutes } from "./ai-tools/course-structure-wizard";
+import { educationalMaterialRoutes } from "./ai-tools/educational-material-wizard";
+import { quizWizardRoutes } from "./ai-tools/quiz-wizard";
 import { questionsRoutes } from "./questions";
 import { aiToolsRoutes } from "./ai-tools";
 
