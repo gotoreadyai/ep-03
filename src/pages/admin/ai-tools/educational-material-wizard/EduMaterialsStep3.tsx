@@ -7,7 +7,7 @@ import { SubPage } from "@/components/layout";
 import { Lead } from "@/components/reader";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button, Input, Switch, Alert, AlertDescription } from "@/components/ui";
-import { Save, AlertCircle, CheckCircle, ArrowLeft } from "lucide-react";
+import { Save, AlertCircle, CheckCircle, ArrowLeft, HelpCircle } from "lucide-react";
 
 type Generated = {
   topic_id: number;
@@ -108,10 +108,10 @@ export function EduMaterialsStep3() {
         );
       });
 
-      // Sukces - przekieruj do podglądu po chwili
-      setTimeout(() => {
-        navigate(`/teacher/activities/show/${result}`, { replace: true });
-      }, 1500);
+      // Sukces - nie przekierowuj automatycznie
+      // setTimeout(() => {
+      //   navigate(`/teacher/activities/show/${result}`, { replace: true });
+      // }, 1500);
       
     } catch (e: any) {
       console.error("Błąd podczas zapisu:", e);
@@ -204,7 +204,7 @@ export function EduMaterialsStep3() {
                 <AlertDescription className="text-green-900">
                   <span className="font-medium">Materiał zapisany!</span><br />
                   ID: {savedActivityId}<br />
-                  <span className="text-xs">Przekierowanie za chwilę...</span>
+                  <span className="text-xs">Możesz teraz dodać pytania kontrolne lub przejść do podglądu.</span>
                 </AlertDescription>
               </Alert>
             )}
@@ -244,6 +244,44 @@ export function EduMaterialsStep3() {
                 </Link>
               </Button>
             </div>
+
+            {/* Przyciski po zapisie */}
+            {savedActivityId && (
+              <div className="pt-4 border-t space-y-2">
+                <p className="text-sm font-medium mb-2">Co dalej?</p>
+                
+                <Button
+                  asChild
+                  variant="default"
+                  className="w-full"
+                >
+                  <Link to="/admin/educational-material/step4">
+                    <HelpCircle className="w-4 h-4 mr-2" />
+                    Dodaj pytania kontrolne (krok 4)
+                  </Link>
+                </Button>
+                
+                <Button
+                  asChild
+                  variant="outline"
+                  className="w-full"
+                >
+                  <Link to={`/teacher/activities/show/${savedActivityId}`}>
+                    Zobacz podgląd materiału
+                  </Link>
+                </Button>
+                
+                <Button
+                  asChild
+                  variant="outline"
+                  className="w-full"
+                >
+                  <Link to="/admin/educational-material/step1">
+                    Stwórz kolejny materiał
+                  </Link>
+                </Button>
+              </div>
+            )}
           </CardContent>
         </Card>
 
@@ -301,7 +339,7 @@ export function EduMaterialsStep3() {
               <AlertCircle className="h-4 w-4" />
               <AlertDescription className="text-xs">
                 Po zapisie materiał będzie dostępny w module aktywności.
-                Możesz go później edytować i przypisać do grup uczniów.
+                Możesz go później edytować, dodać pytania kontrolne i przypisać do grup uczniów.
               </AlertDescription>
             </Alert>
           </CardContent>

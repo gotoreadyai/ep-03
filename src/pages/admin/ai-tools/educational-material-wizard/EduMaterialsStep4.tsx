@@ -1,0 +1,701 @@
+// src/pages/admin/ai-tools/educational-material-wizard/EduMaterialsStep4.tsx
+// Ten komponent pozwala przeglądać wygenerowane materiały i dodawać do nich pytania kontrolne
+import { useEffect, useState, useMemo } from "react";
+import { useList, useUpdate } from "@refinedev/core";
+import { useNavigate } from "react-router-dom";
+import { SubPage } from "@/components/layout";
+import { Lead } from "@/components/reader";
+import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import { 
+  Button, 
+  Alert, 
+  AlertDescription, 
+  ScrollArea,
+  Badge,
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui";
+import { 
+  HelpCircle, 
+  Plus, 
+  Loader2, 
+  CheckCircle, 
+  AlertCircle,
+  Eye,
+  Sparkles,
+  FileText,
+  RefreshCw,
+  Save,
+  X,
+  ChevronRight
+} from "lucide-react";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
+import { callLLM } from "@/utility/llmService";
+import { toast } from "sonner";
+import YAML from "yaml";
+
+// Typy
+type Activity = {
+  id: number;
+  topic_id: number;
+  title: string;
+  content: string;
+  type: string;
+  is_published: boolean;
+  position: number;
+  duration_min?: number;
+  topics?: {
+    title: string;
+    position: number;
+    courses?: {
+      title: string;
+    };
+  };
+};
+
+type Quiz = {
+  question: string;
+  options: string[];
+  answerIndex: number;
+};
+
+type GeneratingState = {
+  activityId: number | null;
+  sectionId: string | null;
+};
+
+// Schema dla generowania pytania
+const QUIZ_SCHEMA = {
+  type: "object",
+  properties: {
+    question: { type: "string", required: true },
+    options: { 
+      type: "array", 
+      items: { type: "string" },
+      minItems: 4,
+      maxItems: 4,
+      required: true 
+    },
+    answerIndex: { 
+      type: "number", 
+      minimum: 0,
+      maximum: 3,
+      required: true 
+    },
+    explanation: { type: "string" }
+  }
+};
+
+export function EduMaterialsStep4() {
+  const navigate = useNavigate();
+  const { mutate: updateActivity } = useUpdate();
+  
+  const [selectedCourseId, setSelectedCourseId] = useState<number | null>(null);
+  const [selectedTopicId, setSelectedTopicId] = useState<number | null>(null);
+  const [expandedActivity, setExpandedActivity] = useState<number | null>(null);
+  const [generating, setGenerating] = useState<GeneratingState>({ 
+    activityId: null, 
+    sectionId: null 
+  });
+  const [savingActivity, setSavingActivity] = useState<number | null>(null);
+  const [quizModal, setQuizModal] = useState<{
+    open: boolean;
+    quiz: Quiz | null;
+    activityId: number | null;
+    sectionId: string | null;
+    sectionTitle: string | null;
+    sectionContent: string | null;
+  }>({
+    open: false,
+    quiz: null,
+    activityId: null,
+    sectionId: null,
+    sectionTitle: null,
+    sectionContent: null
+  });
+
+  // Pobierz kursy z materiałami
+  const { data: coursesData } = useList({
+    resource: "courses",
+    filters: [{ field: "is_published", operator: "eq", value: true }],
+    sorters: [{ field: "created_at", order: "desc" }],
+    pagination: { pageSize: 100 },
+  });
+
+  // Pobierz tematy dla wybranego kursu
+  const { data: topicsData } = useList({
+    resource: "topics",
+    filters: selectedCourseId ? [
+      { field: "course_id", operator: "eq", value: selectedCourseId }
+    ] : [],
+    sorters: [{ field: "position", order: "asc" }],
+    pagination: { pageSize: 500 },
+    queryOptions: { enabled: !!selectedCourseId }
+  });
+
+  // Pobierz materiały dla wybranego tematu
+  const { data: activitiesData, refetch: refetchActivities } = useList<Activity>({
+    resource: "activities",
+    filters: selectedTopicId ? [
+      { field: "topic_id", operator: "eq", value: selectedTopicId },
+      { field: "type", operator: "eq", value: "material" }
+    ] : [],
+    sorters: [{ field: "position", order: "asc" }],
+    pagination: { pageSize: 100 },
+    meta: {
+      select: "*, topics(title, position, courses(title))"
+    },
+    queryOptions: { enabled: !!selectedTopicId }
+  });
+
+  // Parsowanie sekcji z materiału
+  const parseContentSections = (content: string) => {
+    const sections = content.split(/\n(?=##\s+)/g);
+    return sections.map((section, index) => {
+      const titleMatch = section.match(/^##\s+(.+?)$/m);
+      const title = titleMatch ? titleMatch[1].trim() : `Sekcja ${index + 1}`;
+      const cleanContent = section.replace(/^##\s+.+?\n/, "").trim();
+      const id = title.toLowerCase().replace(/[^\p{Letter}\p{Number}]+/gu, "-").replace(/(^-|-$)/g, "") || `section-${index}`;
+      
+      // Sprawdź czy sekcja zawiera już quiz
+      const hasQuiz = /```quiz[\s\S]*?```/g.test(cleanContent);
+      
+      return { id, title, content: cleanContent, hasQuiz };
+    });
+  };
+
+  // Parsowanie istniejących quizów
+  const extractQuizFromSection = (content: string): Quiz | null => {
+    const quizMatch = content.match(/```quiz\s*?\n([\s\S]*?)```/);
+    if (!quizMatch) return null;
+    
+    try {
+      const yamlContent = quizMatch[1];
+      const parsed = YAML.parse(yamlContent) as Quiz;
+      if (parsed.question && Array.isArray(parsed.options) && typeof parsed.answerIndex === 'number') {
+        return parsed;
+      }
+    } catch (e) {
+      console.error("Failed to parse quiz:", e);
+    }
+    
+    return null;
+  };
+
+  // Generowanie pytania kontrolnego
+  const generateQuiz = async (
+    activity: Activity, 
+    sectionId: string, 
+    sectionTitle: string,
+    sectionContent: string
+  ) => {
+    setGenerating({ activityId: activity.id, sectionId });
+    
+    try {
+      const prompt = `
+Jesteś ekspertem od tworzenia pytań kontrolnych do materiałów edukacyjnych.
+
+KONTEKST LEKCJI:
+- Tytuł materiału: ${activity.title}
+- Kurs: ${activity.topics?.courses?.title || "Kurs"}
+- Temat: ${activity.topics?.title || "Temat"}
+
+SEKCJA DO KTÓREJ TWORZYSZ PYTANIE:
+- Tytuł sekcji: ${sectionTitle}
+- Treść sekcji:
+"""
+${sectionContent}
+"""
+
+WYTYCZNE:
+1. Pytanie MUSI sprawdzać zrozumienie KLUCZOWEGO konceptu z tej konkretnej sekcji
+2. Pytanie powinno być jasne i jednoznaczne
+3. Opcje odpowiedzi powinny być wiarygodne (dystraktory podobne do poprawnej odpowiedzi)
+4. Poziom trudności: średni (nie za łatwe, nie za trudne)
+5. Unikaj pytań typu "wszystkie powyższe" lub "żadne z powyższych"
+6. Pytanie powinno testować ZROZUMIENIE, nie pamięć faktów
+7. Język pytania dopasuj do wieku uczniów (liceum/technikum)
+
+WAŻNE:
+- answerIndex to indeks poprawnej odpowiedzi (0-3)
+- options to dokładnie 4 opcje odpowiedzi
+- explanation to krótkie wyjaśnienie dlaczego ta odpowiedź jest poprawna
+
+Wygeneruj jedno pytanie kontrolne w formacie JSON.
+      `.trim();
+
+      const result = await callLLM(prompt, QUIZ_SCHEMA);
+      
+      if (result && result.question && result.options && typeof result.answerIndex === 'number') {
+        setQuizModal({
+          open: true,
+          quiz: {
+            question: result.question,
+            options: result.options,
+            answerIndex: result.answerIndex
+          },
+          activityId: activity.id,
+          sectionId,
+          sectionTitle,
+          sectionContent
+        });
+      } else {
+        throw new Error("Nieprawidłowa struktura wygenerowanego pytania");
+      }
+    } catch (error) {
+      console.error("Error generating quiz:", error);
+      toast.error("Nie udało się wygenerować pytania");
+    } finally {
+      setGenerating({ activityId: null, sectionId: null });
+    }
+  };
+
+  // Zapisywanie pytania do materiału
+  const saveQuizToActivity = async () => {
+    if (!quizModal.quiz || !quizModal.activityId || !quizModal.sectionId) return;
+    
+    setSavingActivity(quizModal.activityId);
+    
+    try {
+      // Pobierz aktualną treść
+      const activity = activitiesData?.data?.find(a => a.id === quizModal.activityId);
+      if (!activity) throw new Error("Nie znaleziono aktywności");
+      
+      // Znajdź sekcję i dodaj quiz
+      const sections = parseContentSections(activity.content);
+      const sectionIndex = sections.findIndex(s => s.id === quizModal.sectionId);
+      
+      if (sectionIndex === -1) throw new Error("Nie znaleziono sekcji");
+      
+      // Przygotuj YAML z quizem
+      const quizYaml = `\`\`\`quiz
+question: "${quizModal.quiz.question}"
+options:
+${quizModal.quiz.options.map(opt => `  - "${opt}"`).join('\n')}
+answerIndex: ${quizModal.quiz.answerIndex}
+\`\`\``;
+      
+      // Odbuduj content z nowym quizem
+      let newContent = activity.content;
+      const sectionParts = newContent.split(/\n(?=##\s+)/g);
+      
+      // Dodaj quiz na końcu odpowiedniej sekcji
+      if (sectionParts[sectionIndex]) {
+        // Usuń stary quiz jeśli istnieje
+        sectionParts[sectionIndex] = sectionParts[sectionIndex].replace(/```quiz[\s\S]*?```/g, '');
+        // Dodaj nowy quiz na końcu sekcji
+        sectionParts[sectionIndex] = sectionParts[sectionIndex].trim() + '\n\n' + quizYaml;
+      }
+      
+      newContent = sectionParts.join('\n');
+      
+      // Zapisz do bazy
+      await new Promise<void>((resolve, reject) => {
+        updateActivity(
+          {
+            resource: "activities",
+            id: quizModal.activityId!.toString(),
+            values: { content: newContent }
+          },
+          {
+            onSuccess: () => {
+              toast.success("Pytanie kontrolne zostało dodane!");
+              setQuizModal({
+                open: false,
+                quiz: null,
+                activityId: null,
+                sectionId: null,
+                sectionTitle: null,
+                sectionContent: null
+              });
+              refetchActivities();
+              resolve();
+            },
+            onError: (error) => {
+              console.error("Error updating activity:", error);
+              reject(error);
+            }
+          }
+        );
+      });
+      
+    } catch (error) {
+      console.error("Error saving quiz:", error);
+      toast.error("Nie udało się zapisać pytania");
+    } finally {
+      setSavingActivity(null);
+    }
+  };
+
+  return (
+    <SubPage>
+      <Lead 
+        title="Krok 4 (opcjonalny)" 
+        description="Dodaj pytania kontrolne do wygenerowanych materiałów" 
+      />
+
+      <div className="grid gap-6 lg:grid-cols-[300px,1fr]">
+        {/* Panel wyboru */}
+        <Card className="h-fit">
+          <CardHeader>
+            <CardTitle className="text-base">Wybór materiałów</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {/* Select kursu */}
+            <div>
+              <label className="text-xs font-medium mb-1 block">Kurs</label>
+              <select
+                value={selectedCourseId || ""}
+                onChange={(e) => {
+                  setSelectedCourseId(e.target.value ? Number(e.target.value) : null);
+                  setSelectedTopicId(null);
+                  setExpandedActivity(null);
+                }}
+                className="w-full rounded-md border px-3 py-2 text-sm"
+              >
+                <option value="">Wybierz kurs</option>
+                {(coursesData?.data || []).map((course: any) => (
+                  <option key={course.id} value={course.id}>
+                    {course.title}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Select tematu */}
+            {selectedCourseId && (
+              <div>
+                <label className="text-xs font-medium mb-1 block">Temat</label>
+                <select
+                  value={selectedTopicId || ""}
+                  onChange={(e) => {
+                    setSelectedTopicId(e.target.value ? Number(e.target.value) : null);
+                    setExpandedActivity(null);
+                  }}
+                  className="w-full rounded-md border px-3 py-2 text-sm"
+                >
+                  <option value="">Wybierz temat</option>
+                  {(topicsData?.data || []).map((topic: any) => (
+                    <option key={topic.id} value={topic.id}>
+                      {topic.position}. {topic.title}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+
+            {/* Info o materiałach */}
+            {selectedTopicId && activitiesData?.data && (
+              <Alert>
+                <FileText className="h-4 w-4" />
+                <AlertDescription className="text-xs">
+                  Znaleziono <strong>{activitiesData.data.length}</strong> materiałów
+                </AlertDescription>
+              </Alert>
+            )}
+
+            <Button
+              variant="outline"
+              onClick={() => navigate("/admin/educational-material")}
+              className="w-full"
+              size="sm"
+            >
+              Powrót do panelu
+            </Button>
+          </CardContent>
+        </Card>
+
+        {/* Lista materiałów */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <HelpCircle className="w-5 h-5" />
+              Materiały do uzupełnienia
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {!selectedTopicId ? (
+              <div className="text-center py-12 text-muted-foreground">
+                <HelpCircle className="w-12 h-12 mx-auto mb-3 opacity-50" />
+                <p className="text-sm">Wybierz kurs i temat aby zobaczyć materiały</p>
+              </div>
+            ) : !activitiesData?.data?.length ? (
+              <div className="text-center py-12 text-muted-foreground">
+                <FileText className="w-12 h-12 mx-auto mb-3 opacity-50" />
+                <p className="text-sm">Brak materiałów w wybranym temacie</p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {activitiesData.data.map((activity) => {
+                  const sections = parseContentSections(activity.content);
+                  const quizCount = sections.filter(s => s.hasQuiz).length;
+                  const isExpanded = expandedActivity === activity.id;
+                  
+                  return (
+                    <div
+                      key={activity.id}
+                      className="rounded-lg border overflow-hidden"
+                    >
+                      {/* Nagłówek materiału */}
+                      <button
+                        onClick={() => setExpandedActivity(isExpanded ? null : activity.id)}
+                        className="w-full p-4 text-left hover:bg-muted/50 transition-colors"
+                      >
+                        <div className="flex items-start justify-between">
+                          <div>
+                            <h3 className="font-medium">{activity.title}</h3>
+                            <div className="flex items-center gap-3 mt-1">
+                              <span className="text-xs text-muted-foreground">
+                                {sections.length} sekcji
+                              </span>
+                              {quizCount > 0 && (
+                                <Badge variant="secondary" className="text-xs">
+                                  <HelpCircle className="w-3 h-3 mr-1" />
+                                  {quizCount} {quizCount === 1 ? 'pytanie' : 'pytań'}
+                                </Badge>
+                              )}
+                              {activity.is_published && (
+                                <Badge variant="default" className="text-xs">
+                                  <Eye className="w-3 h-3 mr-1" />
+                                  Opublikowany
+                                </Badge>
+                              )}
+                            </div>
+                          </div>
+                          <ChevronRight 
+                            className={`w-5 h-5 text-muted-foreground transition-transform ${
+                              isExpanded ? 'rotate-90' : ''
+                            }`}
+                          />
+                        </div>
+                      </button>
+                      
+                      {/* Rozwinięta treść */}
+                      {isExpanded && (
+                        <div className="border-t">
+                          <Tabs defaultValue="sections" className="w-full">
+                            <TabsList className="w-full justify-start rounded-none border-b">
+                              <TabsTrigger value="sections">Sekcje i pytania</TabsTrigger>
+                              <TabsTrigger value="preview">Podgląd</TabsTrigger>
+                            </TabsList>
+                            
+                            <TabsContent value="sections" className="p-4 space-y-3">
+                              {sections.map((section) => {
+                                const existingQuiz = extractQuizFromSection(section.content);
+                                const isGenerating = generating.activityId === activity.id && 
+                                                   generating.sectionId === section.id;
+                                
+                                return (
+                                  <div
+                                    key={section.id}
+                                    className="rounded-lg border p-3 space-y-2"
+                                  >
+                                    <div className="flex items-start justify-between">
+                                      <div className="flex-1">
+                                        <h4 className="font-medium text-sm">{section.title}</h4>
+                                        {existingQuiz && (
+                                          <div className="mt-2 p-2 bg-muted rounded text-xs">
+                                            <div className="flex items-start gap-2">
+                                              <HelpCircle className="w-3 h-3 mt-0.5 text-primary" />
+                                              <div>
+                                                <p className="font-medium">{existingQuiz.question}</p>
+                                                <div className="mt-1 space-y-0.5">
+                                                  {existingQuiz.options.map((opt, idx) => (
+                                                    <div 
+                                                      key={idx}
+                                                      className={idx === existingQuiz.answerIndex ? 'text-green-600 font-medium' : ''}
+                                                    >
+                                                      {idx + 1}. {opt}
+                                                      {idx === existingQuiz.answerIndex && ' ✓'}
+                                                    </div>
+                                                  ))}
+                                                </div>
+                                              </div>
+                                            </div>
+                                          </div>
+                                        )}
+                                      </div>
+                                      <div>
+                                        {existingQuiz ? (
+                                          <Button
+                                            size="sm"
+                                            variant="outline"
+                                            onClick={() => generateQuiz(activity, section.id, section.title, section.content)}
+                                            disabled={isGenerating}
+                                          >
+                                            {isGenerating ? (
+                                              <Loader2 className="w-3 h-3 animate-spin" />
+                                            ) : (
+                                              <RefreshCw className="w-3 h-3" />
+                                            )}
+                                            <span className="ml-1">Zamień</span>
+                                          </Button>
+                                        ) : (
+                                          <Button
+                                            size="sm"
+                                            onClick={() => generateQuiz(activity, section.id, section.title, section.content)}
+                                            disabled={isGenerating}
+                                          >
+                                            {isGenerating ? (
+                                              <Loader2 className="w-3 h-3 animate-spin" />
+                                            ) : (
+                                              <Plus className="w-3 h-3" />
+                                            )}
+                                            <span className="ml-1">Dodaj pytanie</span>
+                                          </Button>
+                                        )}
+                                      </div>
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                            </TabsContent>
+                            
+                            <TabsContent value="preview" className="p-4">
+                              <ScrollArea className="h-[400px] rounded-lg border p-4">
+                                <div className="prose prose-sm max-w-none dark:prose-invert">
+                                  <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                                    {activity.content}
+                                  </ReactMarkdown>
+                                </div>
+                              </ScrollArea>
+                            </TabsContent>
+                          </Tabs>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Modal z podglądem wygenerowanego pytania */}
+      <Dialog open={quizModal.open} onOpenChange={(open) => {
+        if (!open && !savingActivity) {
+          setQuizModal({
+            open: false,
+            quiz: null,
+            activityId: null,
+            sectionId: null,
+            sectionTitle: null,
+            sectionContent: null
+          });
+        }
+      }}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Wygenerowane pytanie kontrolne</DialogTitle>
+            <DialogDescription>
+              Sekcja: {quizModal.sectionTitle}
+            </DialogDescription>
+          </DialogHeader>
+          
+          {quizModal.quiz && (
+            <div className="space-y-4">
+              {/* Podgląd pytania */}
+              <div className="rounded-lg border p-4 bg-muted/50">
+                <p className="font-medium mb-3">{quizModal.quiz.question}</p>
+                <div className="space-y-2">
+                  {quizModal.quiz.options.map((option, idx) => (
+                    <div 
+                      key={idx}
+                      className={`flex items-center gap-2 p-2 rounded ${
+                        idx === quizModal.quiz?.answerIndex 
+                          ? 'bg-green-100 dark:bg-green-900/30 border border-green-300' 
+                          : ''
+                      }`}
+                    >
+                      <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
+                        idx === quizModal.quiz?.answerIndex 
+                          ? 'border-green-500 bg-green-500' 
+                          : 'border-gray-300'
+                      }`}>
+                        {idx === quizModal.quiz?.answerIndex && (
+                          <CheckCircle className="w-3 h-3 text-white" />
+                        )}
+                      </div>
+                      <span className="text-sm">{option}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Kod YAML */}
+              <div>
+                <p className="text-sm font-medium mb-2">Kod YAML (do wstawienia):</p>
+                <div className="rounded-lg border bg-background p-3 font-mono text-xs overflow-x-auto">
+                  <pre>{`\`\`\`quiz
+question: "${quizModal.quiz.question}"
+options:
+${quizModal.quiz.options.map(opt => `  - "${opt}"`).join('\n')}
+answerIndex: ${quizModal.quiz.answerIndex}
+\`\`\``}</pre>
+                </div>
+              </div>
+
+              {/* Akcje */}
+              <div className="flex justify-end gap-2">
+                <Button
+                  variant="outline"
+                  onClick={() => setQuizModal({
+                    open: false,
+                    quiz: null,
+                    activityId: null,
+                    sectionId: null,
+                    sectionTitle: null,
+                    sectionContent: null
+                  })}
+                  disabled={savingActivity !== null}
+                >
+                  Anuluj
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    if (quizModal.activityId && quizModal.sectionId && quizModal.sectionTitle && quizModal.sectionContent) {
+                      const activity = activitiesData?.data?.find(a => a.id === quizModal.activityId);
+                      if (activity) {
+                        generateQuiz(activity, quizModal.sectionId, quizModal.sectionTitle, quizModal.sectionContent);
+                      }
+                    }
+                  }}
+                  disabled={savingActivity !== null}
+                >
+                  <RefreshCw className="w-4 h-4 mr-1" />
+                  Wygeneruj ponownie
+                </Button>
+                <Button
+                  onClick={saveQuizToActivity}
+                  disabled={savingActivity !== null}
+                >
+                  {savingActivity ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-1 animate-spin" />
+                      Zapisywanie...
+                    </>
+                  ) : (
+                    <>
+                      <Save className="w-4 h-4 mr-1" />
+                      Zapisz pytanie
+                    </>
+                  )}
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+    </SubPage>
+  );
+}
