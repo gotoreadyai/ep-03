@@ -28,7 +28,7 @@ export function CourseWizardDashboard() {
   return (
     <SubPage>
       <div className="relative overflow-hidden rounded-2xl border mb-6">
-        <div className="absolute inset-0 bg-[radial-gradient(700px_200px_at_0%_0%,rgba(99,102,241,0.18),transparent),radial-gradient(600px_200px_at_100%_0%,rgba(16,185,129,0.16),transparent)]" />
+        <div className="absolute inset-0 bg-purple-50" />
         <div className="relative px-6 py-8 flex items-center gap-3">
           <div className="shrink-0 inline-flex h-10 w-10 items-center justify-center rounded-xl bg-black text-white">
             <Wand className="w-5 h-5" />
