@@ -12,6 +12,7 @@ import { vendorsRoutes } from "./vendors";
 
 import { courseStructureRoutes } from "./ai-tools/course-structure-wizard";
 import { aiToolsRoutes } from "./ai-tools";
+import { educationalMaterialRoutes } from "./ai-tools/educational-material-wizard";
 
 const allAdminRoutes = [
   ...dashboardRoutes,
@@ -19,7 +20,7 @@ const allAdminRoutes = [
   ...vendorsRoutes,
   ...aiToolsRoutes,
   ...courseStructureRoutes,
-  // ...educationalMaterialRoutes,
+  ...educationalMaterialRoutes,
   // ...quizWizardRoutes,
 
 ];
