@@ -7,7 +7,7 @@
  */
 
 import type { IResourceItem } from "@refinedev/core";
-import { BookOpen, Sparkles } from "lucide-react";
+import { BookOpen } from "lucide-react";
 import { coursesResource } from "./courses";
 import { topicsResource } from "./topics";
 import { activitiesResource } from "./activities";
@@ -22,9 +22,7 @@ import {
   reportsGamificationResource,
   reportsSummaryResource,
 } from "./reports";
-import { courseStructureResource } from "./ai-tools/course-structure-wizard";
-// import { quizWizardResource } from "./ai-tools/quiz-wizard";
-// import { educationalMaterialResource } from "./ai-tools/educational-material-wizard";
+
 
 // Parent resource dla zasobów edukacyjnych
 const educationalResourcesParent: IResourceItem = {
@@ -36,15 +34,7 @@ const educationalResourcesParent: IResourceItem = {
   },
 };
 
-// Parent resource dla narzędzi AI
-const aiToolsParent: IResourceItem = {
-  name: "ai-tools",
-  list: "/teacher/ai-tools", // domyślnie przekieruje na pierwszy wizard
-  meta: {
-    label: "Narzędzia AI",
-    icon: <Sparkles className="h-4 w-4" />
-  },
-};
+
 
 export const teacherResources: IResourceItem[] = [
   // Parent dla zasobów edukacyjnych
@@ -82,32 +72,7 @@ export const teacherResources: IResourceItem[] = [
     },
   },
 
-  // Parent dla narzędzi AI
-  aiToolsParent,
-  {
-    ...courseStructureResource,
-    list: "/teacher/course-structure",
-    meta: {
-      ...courseStructureResource.meta,
-      parent: "ai-tools",
-    },
-  },
-  // {
-  //   ...educationalMaterialResource,
-  //   list: "/teacher/educational-material",
-  //   meta: {
-  //     ...educationalMaterialResource.meta,
-  //     parent: "ai-tools",
-  //   },
-  // },
-  // {
-  //   ...quizWizardResource,
-  //   list: "/teacher/quiz-wizard",
-  //   meta: {
-  //     ...quizWizardResource.meta,
-  //     parent: "ai-tools",
-  //   },
-  // },
+ 
 
   // Użytkownicy i organizacje - osobno
   usersResource,

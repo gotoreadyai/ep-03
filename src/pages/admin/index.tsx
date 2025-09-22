@@ -10,10 +10,17 @@ import { dashboardRoutes } from "./dashboard";
 import { permissionsRoutes } from "./permissions"; 
 import { vendorsRoutes } from "./vendors";
 
+import { courseStructureRoutes } from "./ai-tools/course-structure-wizard";
+import { aiToolsRoutes } from "./ai-tools";
+
 const allAdminRoutes = [
   ...dashboardRoutes,
   ...permissionsRoutes, 
   ...vendorsRoutes,
+  ...aiToolsRoutes,
+  ...courseStructureRoutes,
+  // ...educationalMaterialRoutes,
+  // ...quizWizardRoutes,
 
 ];
 
