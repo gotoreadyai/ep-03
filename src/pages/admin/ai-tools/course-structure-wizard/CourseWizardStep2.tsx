@@ -1,4 +1,4 @@
-// src/pages/teacher/ai-tools/course-structure-wizard/CourseWizardStep2.tsx
+// src/pages/admin/ai-tools/course-structure-wizard/CourseWizardStep2.tsx
 import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { callLLM } from '@/utility/llmService';
@@ -42,7 +42,7 @@ export function CourseWizardStep2() {
       setStepData('step2', { targetCount: 15 });
     }
     if (!step1.outline) {
-      navigate('/teacher/course-structure/step1');
+      navigate('/admin/course-structure/step1');
     }
   }, []);
 
@@ -97,7 +97,7 @@ Zachowaj spójność terminologii i adekwatność do poziomu. Jeśli kurs matura
   };
 
   const handleSave = () => {
-    navigate('/teacher/course-structure/step3', {
+    navigate('/admin/course-structure/step3', {
       state: {
         refined: data.refined,
         outline: step1.outline

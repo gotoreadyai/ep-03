@@ -1,4 +1,4 @@
-// src/pages/teacher/ai-tools/course-structure-wizard/curriculum.ts
+// src/pages/admin/ai-tools/course-structure-wizard/curriculum.ts
 
 export type OutcomesBySubject = Record<string, string[]>;
 export type CurriculumEntry = {

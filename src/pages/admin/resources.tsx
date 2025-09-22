@@ -14,7 +14,7 @@ import { courseStructureResource } from "./ai-tools/course-structure-wizard";
 // Parent resource dla narzędzi AI
 const aiToolsParent: IResourceItem = {
   name: "ai-tools",
-  list: "/teacher/ai-tools", // domyślnie przekieruje na pierwszy wizard
+  list: "/admin/ai-tools", // domyślnie przekieruje na pierwszy wizard
   meta: {
     label: "Narzędzia AI",
     icon: <Sparkles className="h-4 w-4" />

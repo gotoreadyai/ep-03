@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-// src/pages/teacher/ai-tools/course-structure-wizard/CourseWizardStep3.tsx
+// src/pages/admin/ai-tools/course-structure-wizard/CourseWizardStep3.tsx
 import { useLocation, useNavigate, Link } from "react-router-dom";
 import { useState, useMemo } from "react";
 import { useCreate, useGetIdentity, BaseKey } from "@refinedev/core";
@@ -41,6 +41,7 @@ export function CourseWizardStep3() {
     setSavedTopics(0);
 
     try {
+      // 1) Zapis kursu
       const courseId = await new Promise<BaseKey>((resolve, reject) => {
         createCourse(
           {
@@ -48,7 +49,7 @@ export function CourseWizardStep3() {
             values: {
               title: refined.courseTitle,
               description: refined.courseDescription || "",
-              vendor_id: identity?.vendor_id ?? 0,
+              vendor_id: Number(identity?.vendor_id ?? 0),
               is_published: false,
               icon_emoji: outline?.icon_emoji || "📚",
             },
@@ -65,11 +66,13 @@ export function CourseWizardStep3() {
       });
 
       setSavedCourseId(courseId);
-      const courseIdNumber = typeof courseId === "string" ? parseInt(courseId, 10) : courseId;
+      const courseIdNumber = typeof courseId === "string" ? parseInt(courseId, 10) : (courseId as number);
 
+      // 2) Zapis tematów — bez 'description', bo nie istnieje w tabeli
       const total = refined.topics?.length || 0;
       for (let i = 0; i < total; i++) {
         const t = refined.topics[i];
+        const position = Number(t.position ?? i + 1);
         await new Promise<void>((resolve) => {
           createTopic(
             {
@@ -77,9 +80,8 @@ export function CourseWizardStep3() {
               values: {
                 course_id: courseIdNumber,
                 title: t.title,
-                description: t.description,
-                position: t.position || i + 1,
-                is_published: t.is_published || false,
+                position,
+                is_published: Boolean(t.is_published ?? false),
               },
             },
             {
@@ -87,8 +89,9 @@ export function CourseWizardStep3() {
                 setSavedTopics((prev) => prev + 1);
                 resolve();
               },
-              onError: () => {
-                console.error(`Błąd zapisu tematu ${i + 1}/${total}`);
+              onError: (err) => {
+                console.error(`Błąd zapisu tematu ${i + 1}/${total}`, err);
+                // kontynuujemy mimo błędu pojedynczego tematu
                 resolve();
               },
             }
@@ -97,7 +100,7 @@ export function CourseWizardStep3() {
       }
 
       clearAll();
-      navigate("/teacher/ai-tools", { replace: true });
+      navigate("/admin/ai-tools", { replace: true });
     } catch (e: any) {
       console.error("Błąd zapisu:", e);
       setError(e?.message || "Nie udało się zapisać kursu.");
@@ -119,7 +122,7 @@ export function CourseWizardStep3() {
               </AlertDescription>
             </Alert>
             <Button asChild className="mt-4">
-              <Link to="/teacher/course-structure/step2">
+              <Link to="/admin/course-structure/step2">
                 <ArrowLeft className="w-4 h-4" />
                 Wróć do kroku 2
               </Link>
@@ -166,7 +169,7 @@ export function CourseWizardStep3() {
                 <div className="space-y-1 text-sm">
                   {refined.topics.slice(0, 12).map((t: any, i: number) => (
                     <div key={i} className="border-l-2 border-muted pl-2">
-                      <span className="text-muted-foreground">{t.position || i + 1}.</span> {t.title}
+                      <span className="text-muted-foreground">{Number(t.position ?? i + 1)}.</span> {t.title}
                     </div>
                   ))}
                   {refined.topics.length > 12 && (
@@ -199,7 +202,7 @@ export function CourseWizardStep3() {
                 {saving ? "Zapisywanie..." : "Zapisz kurs i tematy"}
               </Button>
               <Button asChild variant="outline">
-                <Link to="/teacher/course-structure/step2">
+                <Link to="/admin/course-structure/step2">
                   <ArrowLeft className="w-4 h-4" />
                 </Link>
               </Button>

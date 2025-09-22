@@ -1,4 +1,4 @@
-// src/pages/teacher/ai-tools/course-structure-wizard/CourseWizardStep1.tsx
+// src/pages/admin/ai-tools/course-structure-wizard/CourseWizardStep1.tsx
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { callLLM } from "@/utility/llmService";
@@ -271,7 +271,7 @@ Szkic ma być zwięzły, klarowny i praktyczny dla planowania lekcji. Zadbaj, by
                   ))}
                 </div>
                 <Button asChild className="w-full">
-                  <Link to="/teacher/course-structure/step2">Dalej →</Link>
+                  <Link to="/admin/course-structure/step2">Dalej →</Link>
                 </Button>
               </div>
             ) : (

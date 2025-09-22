@@ -1,4 +1,4 @@
-// src/pages/teacher/ai-tools/course-structure-wizard/index.tsx
+// src/pages/admin/ai-tools/course-structure-wizard/index.tsx
 import { Route } from "react-router";
 import { CourseWizardDashboard } from "./CourseWizardDashboard";
 import { CourseWizardStep1 } from "./CourseWizardStep1";

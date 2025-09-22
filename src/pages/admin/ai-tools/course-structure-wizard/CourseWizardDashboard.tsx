@@ -23,7 +23,7 @@ export function CourseWizardDashboard() {
           </ol>
 
           <Link
-            to="/teacher/course-structure/step1"
+            to="/admin/course-structure/step1"
             className="inline-flex items-center gap-2 mt-4 px-4 py-2 rounded-xl bg-black text-white text-sm hover:opacity-90"
           >
             Rozpocznij
