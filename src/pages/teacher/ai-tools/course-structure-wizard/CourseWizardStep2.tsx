@@ -1,363 +1,246 @@
 // src/pages/teacher/ai-tools/course-structure-wizard/CourseWizardStep2.tsx
-/* eslint-disable @typescript-eslint/no-explicit-any */
-import { useLocation, Link } from "react-router-dom";
-import { useMemo, useState, useEffect } from "react";
-import { z } from "zod";
-import { defineJsonOperation, useLLM } from "@/utility/llmService/useLLM";
-import { Settings2, Loader2, CheckCircle2, ArrowLeft, ChevronRight } from "lucide-react";
-import { useFormSchemaStore } from "@/utility/formWizard";
-import { SnapshotToggle } from "@/utility/formWizard/components/SnapshotToggle";
+import { useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { callLLM } from '@/utility/llmService';
+import { SnapshotBar, useStepStore } from '@/utility/formWizard';
+import { Loader2, Sparkles, ChevronRight, AlertCircle } from 'lucide-react';
+import { Input, Button, Card, CardHeader, CardTitle, CardContent, Alert, AlertDescription, ScrollArea } from '@/components/ui';
 
-const TopicSchema = z.object({
-  title: z.string(),
-  description: z.string(),
-  position: z.number().optional(),
-  is_published: z.boolean().optional(),
-});
-
-const RefinedSchema = z.object({
-  courseTitle: z.string(),
-  courseDescription: z.string().optional(),
-  subject: z.string(),
-  level: z.enum(["podstawowy", "rozszerzony"]).or(z.string()),
-  isMaturaCourse: z.boolean(),
-  topics: z.array(TopicSchema).min(4).max(80),
-});
-
-type Refined = z.infer<typeof RefinedSchema>;
-
-const PROCESS_ID = "course-wizard-step2";
+const SCHEMA = {
+  type: 'object',
+  properties: {
+    courseTitle: { type: 'string', required: true },
+    courseDescription: { type: 'string' },
+    subject: { type: 'string', required: true },
+    level: { type: 'string', required: true },
+    isMaturaCourse: { type: 'boolean', required: true },
+    topics: {
+      type: 'array',
+      minItems: 1,
+      items: {
+        type: 'object',
+        properties: {
+          title: { type: 'string', required: true },
+          description: { type: 'string', required: true },
+          position: { type: 'number', required: true },
+          is_published: { type: 'boolean', required: true }
+        }
+      }
+    }
+  }
+};
 
 export function CourseWizardStep2() {
-  const location = useLocation() as any;
-  const { register, setData, getData } = useFormSchemaStore();
-  
-  // Pobierz dane z kroku 1
-  const step1Data = getData("course-wizard-step1");
-  const initialOutline = location?.state?.outline || step1Data?.outline;
+  const { registerStep, setStepData, getStepData } = useStepStore();
+  const navigate = useNavigate();
+  const step1 = getStepData('step1');
+  const data = getStepData('step2');
 
-  // Rejestracja procesu
   useEffect(() => {
-    register({
-      id: PROCESS_ID,
-      title: "Generator kursów - Krok 2",
-      schema: {
-        refineParams: { type: "object", label: "Parametry doprecyzowania" },
-        refined: { type: "object", label: "Doprecyzowane tematy" },
-      },
-    });
-  }, [register]);
-
-  // Stan lokalny
-  const initialFromStore = useFormSchemaStore((s) => s.formData[PROCESS_ID]) || {};
-  
-  const [refineParams, setRefineParams] = useState({
-    targetTopicsCount: initialFromStore.refineParams?.targetTopicsCount || 
-      Math.min(Math.max((initialOutline?.topics?.length as number) || 15, 8), 30),
-    styleHints: initialFromStore.refineParams?.styleHints || 
-      "krótkie, operacyjne opisy; wyrównanie do podstawy programowej; język matury",
-    includeExamAngles: initialFromStore.refineParams?.includeExamAngles ?? 
-      Boolean(initialOutline?.isMaturaCourse),
-  });
-
-  const [refined, setRefined] = useState<Refined | null>(
-    initialFromStore.refined || null
-  );
-
-  // Synchronizacja ze store
-  useEffect(() => {
-    const dataFromStore = useFormSchemaStore.getState().formData[PROCESS_ID];
-    if (dataFromStore?.refined) {
-      setRefined(dataFromStore.refined);
+    registerStep('step2', SCHEMA);
+    if (!data.targetCount) {
+      setStepData('step2', { targetCount: 15 });
     }
-    if (dataFromStore?.refineParams) {
-      setRefineParams(dataFromStore.refineParams);
+    if (!step1.outline) {
+      navigate('/teacher/course-structure/step1');
     }
   }, []);
 
-  const operation = useMemo(
-    () =>
-      defineJsonOperation({
-        id: "refine-highschool-topics",
-        name: "Generuj tematy dla studentów",
-        system: [
-          "Jesteś ekspertem dydaktyki licealnej w Polsce.",
-          "Tworzysz KONKRETNE TEMATY lekcji dla uczniów z pełnymi opisami.",
-          "Każdy temat to samodzielna jednostka dydaktyczna.",
-          "Opisy muszą być jasne, operacyjne i wskazywać co uczeń będzie umiał.",
-          "Zwracaj WYŁĄCZNIE poprawny JSON zgodny ze schematem."
-        ].join("\n"),
-        user: [
-          "Na podstawie szkicu kursu wygeneruj PEŁNĄ LISTĘ TEMATÓW dla uczniów.",
-          "Każdy temat to osobna lekcja/jednostka w systemie e-learningowym.",
-          "",
-          "Szkic kursu:",
-          JSON.stringify(initialOutline ?? {}, null, 2),
-          "",
-          "Parametry generowania:",
-          "- Docelowa liczba tematów: {{targetTopicsCount}}",
-          "- Styl opisów: {{styleHints}}",
-          "- Akcent egzaminacyjny: {{includeExamAngles}}",
-          "",
-          "Zwróć JSON:",
-          "{",
-          '  "courseTitle": string, // tytuł całego kursu',
-          '  "courseDescription": string, // opis kursu dla uczniów',
-          '  "subject": string,',
-          '  "level": "podstawowy" | "rozszerzony",',
-          '  "isMaturaCourse": boolean,',
-          '  "topics": [',
-          '    {',
-          '      "title": string, // tytuł tematu/lekcji',
-          '      "description": string, // co uczeń nauczy się w tym temacie',
-          '      "position": number, // kolejność tematu (1, 2, 3...)',
-          '      "is_published": boolean // domyślnie false',
-          '    }',
-          '  ]',
-          "}",
-          "",
-          "Wymagania:",
-          "- Tytuły tematów: konkretne, zrozumiałe dla ucznia",
-          "- Opisy: 2-3 zdania, wskazują efekty uczenia się",
-          "- Zachowaj logiczną kolejność tematów (od podstaw do zaawansowanych)",
-          "- Pozycje numeruj od 1",
-          "- Wszystkie tematy mają is_published: false (nauczyciel sam zdecyduje)",
-        ].join("\n"),
-        schema: RefinedSchema,
-        coerce: (raw: any) => {
-          if (raw?.level) {
-            const v = String(raw.level).toLowerCase();
-            if (["rozszerzony", "podstawowy"].includes(v)) raw.level = v;
-          }
-          // Automatyczne numerowanie pozycji jeśli brak
-          if (Array.isArray(raw?.topics)) {
-            raw.topics = raw.topics.map((t: any, idx: number) => ({
-              ...t,
-              position: t.position ?? idx + 1,
-              is_published: t.is_published ?? false
-            }));
-          }
-          return raw;
-        },
-        inputMapping: (data: any) => ({
-          targetTopicsCount: data.targetTopicsCount,
-          styleHints: data.styleHints,
-          includeExamAngles: data.includeExamAngles,
-        }),
-        validation: (res) => {
-          // Poprawiona walidacja - zwraca tylko boolean
-          return Boolean(
-            res?.courseTitle &&
-            Array.isArray(res?.topics) &&
-            res.topics.length > 0 &&
-            res.topics[0]?.title &&
-            typeof res.topics[0].title === "string"
-          );
-        },
-      }),
-    [initialOutline]
-  );
+  const generate = async () => {
+    if (!step1.outline) {
+      setStepData('step2', { error: 'Brak danych z kroku 1' });
+      return;
+    }
 
-  const { run, loading, error, clear } = useLLM("course-structure", operation);
+    setStepData('step2', { isGenerating: true, error: null });
 
-  const updateParams = (patch: Partial<typeof refineParams>) => {
-    const next = { ...refineParams, ...patch };
-    setRefineParams(next);
-    setData(PROCESS_ID, { refineParams: next }, { preferNonEmpty: false });
+    const prompt = `
+Rozwiń szkic kursu do dokładnie ${data.targetCount} tematów lekcji, logicznie uporządkowanych od podstaw do bardziej zaawansowanych.
+Wygeneruj tytuły i krótkie opisy (2–3 zdania) z perspektywy nauczyciela przygotowującego plan pracy.
+Kontekst:
+- tytuł szkicu: ${step1.outline.title}
+- przedmiot: ${step1.outline.subject}
+- poziom: ${step1.outline.level}
+- kurs ${step1.outline.isMaturaCourse ? 'maturalny' : 'niematuralny'}
+- główne tematy szkicu: ${step1.outline.topics?.map((t: any) => t.title).join(', ')}
+
+Zachowaj spójność terminologii i adekwatność do poziomu. Jeśli kurs maturalny — uwzględnij wymagania egzaminacyjne w zakresie doboru tematów.
+    `.trim();
+
+    try {
+      const result = await callLLM(prompt, SCHEMA);
+      const refined = {
+        ...result,
+        courseTitle: result.courseTitle || result.title || step1.outline.title,
+        subject: result.subject || step1.outline.subject,
+        level: result.level || step1.outline.level,
+        isMaturaCourse: result.isMaturaCourse ?? step1.outline.isMaturaCourse,
+        topics: (result.topics || []).map((t: any, i: number) => ({
+          ...t,
+          position: t.position || i + 1,
+          is_published: false
+        }))
+      };
+
+      setStepData('step2', {
+        refined,
+        isGenerating: false,
+        error: null
+      });
+    } catch (e) {
+      console.error('Błąd generowania:', e);
+      setStepData('step2', {
+        isGenerating: false,
+        error: 'Nie udało się wygenerować tematów. Spróbuj ponownie.'
+      });
+    }
   };
 
-  const submit = async () => {
-    const out = await run(refineParams);
-    setRefined(out);
-    setData(PROCESS_ID, { refined: out }, { preferNonEmpty: false });
+  const handleSave = () => {
+    navigate('/teacher/course-structure/step3', {
+      state: {
+        refined: data.refined,
+        outline: step1.outline
+      }
+    });
   };
-
-  const clearAll = () => {
-    clear();
-    setRefined(null);
-    setData(PROCESS_ID, { refined: null }, { preferNonEmpty: false });
-  };
-
-  if (!initialOutline) {
-    return (
-      <div className="max-w-7xl mx-auto p-6">
-        <div className="rounded-2xl border p-4 bg-white shadow-sm">
-          <p className="text-red-600">
-            Brak danych z kroku 1. Wróć do kroku 1 i wygeneruj szkic kursu.
-          </p>
-          <Link
-            to="/teacher/course-structure/step1"
-            className="inline-flex items-center gap-2 mt-3 px-4 py-2 rounded-xl bg-black text-white text-sm"
-          >
-            <ArrowLeft className="w-4 h-4" />
-            Wróć do kroku 1
-          </Link>
-        </div>
-      </div>
-    );
-  }
 
   return (
-    <div className="max-w-7xl mx-auto p-6 relative">
-      <header className="flex items-center gap-3 mb-6">
-        <Settings2 className="w-6 h-6" />
-        <h1 className="text-2xl font-semibold">Krok 2 — Generuj tematy dla uczniów</h1>
-      </header>
+    <div className="max-w-7xl mx-auto p-6">
+      <h1 className="text-2xl font-semibold mb-6">Krok 2 — Szczegółowe tematy lekcji</h1>
 
-      <div className="grid gap-6 lg:grid-cols-2">
-        {/* PARAMETRY */}
-        <div className="rounded-2xl border p-4 bg-white shadow-sm">
-          <h2 className="font-medium mb-3">Parametry generowania</h2>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <Card>
+          <CardHeader>
+            <CardTitle>Konfiguracja</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {step1.outline && (
+              <Alert>
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription>
+                  <strong>Rozwijamy kurs:</strong> {step1.outline.title}<br />
+                  <span className="text-muted-foreground">
+                    {step1.outline.subject} • {step1.outline.level}
+                    {step1.outline.isMaturaCourse && ' • Maturalny'}
+                  </span>
+                </AlertDescription>
+              </Alert>
+            )}
 
-          <div className="bg-gray-50 rounded-xl p-3 mb-4">
-            <div className="text-sm text-zinc-600">
-              <div><strong>Szkic kursu:</strong> {initialOutline.title}</div>
-              <div>Przedmiot: {initialOutline.subject}, Poziom: {initialOutline.level}</div>
-              <div>Liczba obszarów w szkicu: {initialOutline.topics?.length || 0}</div>
+            <div>
+              <label className="block text-sm font-medium mb-2">
+                Liczba tematów lekcji
+              </label>
+              <Input
+                type="number"
+                min="5"
+                max="50"
+                value={data.targetCount || 15}
+                onChange={e => setStepData('step2', { targetCount: Number(e.target.value) })}
+                disabled={data.isGenerating}
+              />
+              <p className="text-xs text-muted-foreground mt-1">
+                Zalecane: 10-20 dla kursu podstawowego, 20-30 dla rozszerzonego
+              </p>
             </div>
-          </div>
 
-          <label className="block mb-3">
-            <span className="text-sm font-medium">Docelowa liczba tematów</span>
-            <input
-              type="number"
-              min={5}
-              max={60}
-              className="mt-1 w-full rounded-xl border px-3 py-2"
-              value={refineParams.targetTopicsCount}
-              onChange={(e) =>
-                updateParams({ targetTopicsCount: Number(e.target.value || 10) })
-              }
-            />
-            <span className="text-xs text-gray-500">
-              Każdy temat to osobna lekcja w systemie
-            </span>
-          </label>
+            {data.error && (
+              <Alert variant="destructive">
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription>{data.error}</AlertDescription>
+              </Alert>
+            )}
 
-          <label className="block mb-3">
-            <span className="text-sm font-medium">Styl opisów</span>
-            <textarea
-              className="mt-1 w-full rounded-xl border px-3 py-2 min-h-[60px]"
-              value={refineParams.styleHints}
-              onChange={(e) => updateParams({ styleHints: e.target.value })}
-              placeholder="np. krótkie, operacyjne; język zrozumiały dla ucznia"
-            />
-          </label>
-
-          <label className="flex items-center gap-2 mb-4">
-            <input
-              type="checkbox"
-              checked={refineParams.includeExamAngles}
-              onChange={(e) =>
-                updateParams({ includeExamAngles: e.target.checked })
-              }
-            />
-            <span className="text-sm font-medium">
-              Uwzględnij wymagania maturalne w opisach
-            </span>
-          </label>
-
-          <div className="flex gap-2">
-            <button
-              onClick={submit}
-              disabled={loading}
-              className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-black text-white text-sm disabled:opacity-50"
+            <Button
+              onClick={generate}
+              disabled={data.isGenerating || !step1.outline}
+              className="w-full"
             >
-              {loading ? (
-                <Loader2 className="w-4 h-4 animate-spin" />
+              {data.isGenerating ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  Generowanie tematów...
+                </>
               ) : (
-                <Settings2 className="w-4 h-4" />
+                <>
+                  <Sparkles className="w-4 h-4" />
+                  Generuj {data.targetCount} tematów
+                </>
               )}
-              Generuj tematy
-            </button>
-            
-            <button
-              onClick={clearAll}
-              className="px-3 py-2 rounded-xl border text-sm"
-            >
-              Wyczyść
-            </button>
-            
-            <Link
-              to="/teacher/course-structure/step1"
-              className="inline-flex items-center gap-2 px-3 py-2 rounded-xl border text-sm"
-            >
-              <ArrowLeft className="w-4 h-4" />
-              Krok 1
-            </Link>
-          </div>
+            </Button>
 
-          {error && (
-            <p className="text-sm text-red-600 mt-3">Błąd: {error}</p>
-          )}
-        </div>
-
-        {/* WYNIK */}
-        <div className="rounded-2xl border p-4 bg-white shadow-sm max-h-[80vh] overflow-y-auto">
-          <h2 className="font-medium mb-3">Wygenerowane tematy</h2>
-
-          {!refined && (
-            <p className="text-sm text-zinc-600">
-              Po wygenerowaniu zobaczysz tutaj listę tematów gotowych do zapisu jako lekcje w systemie.
-            </p>
-          )}
-
-          {refined && (
-            <div className="space-y-3">
-              <div className="bg-emerald-50 rounded-xl p-3">
-                <div className="flex items-center gap-2 mb-2">
-                  <CheckCircle2 className="w-5 h-5 text-emerald-600" />
-                  <div className="font-medium">{refined.courseTitle}</div>
-                </div>
-                {refined.courseDescription && (
-                  <p className="text-sm text-zinc-600 mb-2">{refined.courseDescription}</p>
-                )}
-                <div className="text-sm text-zinc-600">
-                  <div>Przedmiot: {refined.subject}</div>
-                  <div>Poziom: {String(refined.level)}</div>
-                  <div>Kurs maturalny: {refined.isMaturaCourse ? "tak" : "nie"}</div>
-                  <div className="font-medium mt-1">
-                    Liczba tematów: {refined.topics.length}
+            {data.refined && (
+              <Card className="bg-muted">
+                <CardContent className="pt-6">
+                  <p className="text-sm font-medium mb-2">Wygenerowano:</p>
+                  <div className="text-sm text-muted-foreground space-y-1">
+                    <div>• {data.refined.topics?.length || 0} tematów</div>
+                    <div>• {data.refined.courseDescription ? '✓' : '✗'} Opis kursu</div>
+                    <div>• Poziom: {data.refined.level}</div>
                   </div>
-                </div>
-              </div>
+                </CardContent>
+              </Card>
+            )}
+          </CardContent>
+        </Card>
 
-              <div className="space-y-2">
-                <h3 className="text-sm font-medium">Lista tematów:</h3>
-                {refined.topics.map((topic, i) => (
-                  <div key={i} className="rounded-xl border p-3 hover:bg-gray-50">
-                    <div className="flex items-start gap-3">
-                      <span className="text-sm font-medium text-gray-500 mt-0.5">
-                        {topic.position || i + 1}.
-                      </span>
-                      <div className="flex-1">
-                        <div className="font-medium">{topic.title}</div>
-                        <div className="text-sm text-zinc-600 mt-1">
-                          {topic.description}
+        <Card>
+          <CardHeader>
+            <CardTitle>Podgląd tematów</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {data.isGenerating ? (
+              <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
+                <Loader2 className="w-8 h-8 animate-spin mb-3" />
+                <p className="text-sm">Generowanie {data.targetCount} tematów...</p>
+                <p className="text-xs mt-1">To może potrwać do 30 sekund</p>
+              </div>
+            ) : data.refined ? (
+              <>
+                <Card className="mb-4">
+                  <CardContent className="pt-6">
+                    <h3 className="font-bold">{data.refined.courseTitle}</h3>
+                    {data.refined.courseDescription && (
+                      <p className="text-sm text-muted-foreground mt-1">
+                        {data.refined.courseDescription}
+                      </p>
+                    )}
+                  </CardContent>
+                </Card>
+
+                <ScrollArea className="h-[400px] mb-4">
+                  <div className="space-y-2">
+                    {data.refined.topics?.map((t: any) => (
+                      <Card key={t.position} className="p-3">
+                        <div className="flex items-start gap-2">
+                          <span className="text-muted-foreground text-sm">{t.position}.</span>
+                          <div className="flex-1">
+                            <div className="font-medium text-sm">{t.title}</div>
+                            <div className="text-xs text-muted-foreground mt-1">{t.description}</div>
+                          </div>
                         </div>
-                        <div className="text-xs text-gray-400 mt-1">
-                          Status: {topic.is_published ? "opublikowany" : "niepublikowany"}
-                        </div>
-                      </div>
-                    </div>
+                      </Card>
+                    ))}
                   </div>
-                ))}
-              </div>
+                </ScrollArea>
 
-              <Link
-                to="/teacher/course-structure/step3"
-                state={{ refined, outline: initialOutline }}
-                className="inline-flex items-center gap-2 mt-3 px-4 py-2 rounded-xl bg-black text-white text-sm w-full justify-center"
-              >
-                Przejdź do zapisu (krok 3)
-                <ChevronRight className="w-4 h-4" />
-              </Link>
-            </div>
-          )}
-        </div>
+                <Button onClick={handleSave} className="w-full" variant="default">
+                  <span>Przejdź do zapisu</span>
+                  <ChevronRight className="w-4 h-4" />
+                </Button>
+              </>
+            ) : (
+              <div className="text-center py-12 text-muted-foreground">
+                <p className="text-sm">Tematy pojawią się tutaj po wygenerowaniu</p>
+                <p className="text-xs mt-2">Wybierz liczbę tematów i kliknij "Generuj"</p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
       </div>
 
-      <SnapshotToggle processId={PROCESS_ID} position="right" />
+      <SnapshotBar />
     </div>
   );
-} 
+}

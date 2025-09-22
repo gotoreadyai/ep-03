@@ -1,6 +1,17 @@
-// /formWizard/types.ts
+// src/utility/formWizard/types.ts
+export interface SchemaFieldDef {
+  type: "string" | "number" | "boolean" | "object" | "array" | "enum";
+  label?: string;
+  required?: boolean;
+  options?: string[];  // dla enum
+  properties?: Record<string, SchemaFieldDef>;  // dla object
+  items?: SchemaFieldDef;  // dla array
+  minItems?: number;  // dla array
+  maxItems?: number;  // dla array
+}
+
 export interface FormSchema {
-  [key: string]: any;
+  [key: string]: SchemaFieldDef | any;  // zachowujemy kompatybilność wsteczną
 }
 
 export interface SchemaProcess {
@@ -14,16 +25,7 @@ export type UnregisterMode = "all" | "data";
 export type SetDataMode = "merge" | "replace";
 
 export interface SetDataOptions {
-  /**
-   * Tryb zapisu:
-   * - "merge" (domyślnie): scala pola procesu.
-   * - "replace": zastępuje cały obiekt danych procesu.
-   */
   mode?: SetDataMode;
-  /**
-   * Gdy true (domyślnie) — puste wartości ("" | null | undefined | []) NIE nadpisują
-   * już istniejących niepustych wartości. Działa tylko w trybie "merge".
-   */
   preferNonEmpty?: boolean;
 }
 
@@ -35,18 +37,10 @@ export interface FormSchemaStore {
   unregister: (processId: string, mode?: UnregisterMode) => void;
   get: (processId: string) => SchemaProcess | null;
   getSchemaFragment: (path: string) => any;
-
-  /**
-   * Ustaw dane procesu.
-   * - W trybie "replace" — podmienia cały obiekt danych procesu.
-   * - W trybie "merge" — scali klucze; domyślnie nie pozwala pustym wartościom nadpisywać niepustych.
-   */
   setData: (processId: string, data: any, options?: SetDataOptions) => void;
-
   getData: (processId: string) => any;
   reset: (processId: string) => void;
 
-  // Snapshoty
   saveCurrentAsSnapshot: (
     processId: string,
     name: string,

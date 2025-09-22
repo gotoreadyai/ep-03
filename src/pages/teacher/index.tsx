@@ -20,8 +20,8 @@ import { usersRoutes } from "./users";
 
 import { reportsRoutes } from "./reports";
 import { courseStructureRoutes } from "./ai-tools/course-structure-wizard";
-import { educationalMaterialRoutes } from "./ai-tools/educational-material-wizard";
-import { quizWizardRoutes } from "./ai-tools/quiz-wizard";
+// import { educationalMaterialRoutes } from "./ai-tools/educational-material-wizard";
+// import { quizWizardRoutes } from "./ai-tools/quiz-wizard";
 import { questionsRoutes } from "./questions";
 import { aiToolsRoutes } from "./ai-tools";
 
@@ -33,8 +33,8 @@ const allTeacherRoutes = [
   ...activitiesRoutes,
   ...questionsRoutes,
   ...courseStructureRoutes,
-  ...educationalMaterialRoutes,
-  ...quizWizardRoutes,
+  // ...educationalMaterialRoutes,
+  // ...quizWizardRoutes,
   ...groupsRoutes,
   ...usersRoutes,
 

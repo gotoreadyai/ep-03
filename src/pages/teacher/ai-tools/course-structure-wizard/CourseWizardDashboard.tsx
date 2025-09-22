@@ -1,4 +1,4 @@
-// src/pages/teacher/course-structure-wizard/CourseWizardDashboard.tsx
+// src/pages/teacher/ai-tools/course-structure-wizard/CourseWizardDashboard.tsx
 import { Link } from "react-router-dom";
 import { Wand, ChevronRight } from "lucide-react";
 

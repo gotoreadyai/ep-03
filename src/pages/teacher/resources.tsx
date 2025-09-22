@@ -23,8 +23,8 @@ import {
   reportsSummaryResource,
 } from "./reports";
 import { courseStructureResource } from "./ai-tools/course-structure-wizard";
-import { quizWizardResource } from "./ai-tools/quiz-wizard";
-import { educationalMaterialResource } from "./ai-tools/educational-material-wizard";
+// import { quizWizardResource } from "./ai-tools/quiz-wizard";
+// import { educationalMaterialResource } from "./ai-tools/educational-material-wizard";
 
 // Parent resource dla zasobów edukacyjnych
 const educationalResourcesParent: IResourceItem = {
@@ -92,22 +92,22 @@ export const teacherResources: IResourceItem[] = [
       parent: "ai-tools",
     },
   },
-  {
-    ...educationalMaterialResource,
-    list: "/teacher/educational-material",
-    meta: {
-      ...educationalMaterialResource.meta,
-      parent: "ai-tools",
-    },
-  },
-  {
-    ...quizWizardResource,
-    list: "/teacher/quiz-wizard",
-    meta: {
-      ...quizWizardResource.meta,
-      parent: "ai-tools",
-    },
-  },
+  // {
+  //   ...educationalMaterialResource,
+  //   list: "/teacher/educational-material",
+  //   meta: {
+  //     ...educationalMaterialResource.meta,
+  //     parent: "ai-tools",
+  //   },
+  // },
+  // {
+  //   ...quizWizardResource,
+  //   list: "/teacher/quiz-wizard",
+  //   meta: {
+  //     ...quizWizardResource.meta,
+  //     parent: "ai-tools",
+  //   },
+  // },
 
   // Użytkownicy i organizacje - osobno
   usersResource,
