@@ -33,17 +33,23 @@ const SCHEMA = {
 export function CourseWizardStep2() {
   const { registerStep, setStepData, getStepData } = useStepStore();
   const navigate = useNavigate();
-  const step1 = getStepData('step1');
-  const data = getStepData('step2');
+  const step1 = getStepData('step1') || {};
+  const data = getStepData('step2') || {};
 
   useEffect(() => {
     registerStep('step2', SCHEMA);
     if (!data.targetCount) {
       setStepData('step2', { targetCount: 15 });
     }
+    // domyślne źródło tytułu: z preferencji z kroku 1
+    if (!data.titleSource) {
+      const defaultSource = step1.useCustomTitle && step1.title?.trim() ? 'custom' : 'generated';
+      setStepData('step2', { titleSource: defaultSource });
+    }
     if (!step1.outline) {
       navigate('/admin/course-structure/step1');
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const generate = async () => {
@@ -69,15 +75,28 @@ Zachowaj spójność terminologii i adekwatność do poziomu. Jeśli kurs matura
 
     try {
       const result = await callLLM(prompt, SCHEMA);
+
+      // Tytuł wygenerowany przez LLM (fallback na szkic z kroku 1)
+      const generatedTitle = result.courseTitle || result.title || step1.outline.title;
+
+      // Aktualna preferencja użytkownika (krok 2), fallback – preferencja z kroku 1
+      const titleSource = data.titleSource || (step1.useCustomTitle && step1.title?.trim() ? 'custom' : 'generated');
+
+      // Ostateczny tytuł do zapisu
+      const finalTitle =
+        titleSource === 'custom' && step1.title?.trim()
+          ? step1.title.trim()
+          : generatedTitle;
+
       const refined = {
         ...result,
-        courseTitle: result.courseTitle || result.title || step1.outline.title,
+        courseTitle: finalTitle,
         subject: result.subject || step1.outline.subject,
         level: result.level || step1.outline.level,
         isMaturaCourse: result.isMaturaCourse ?? step1.outline.isMaturaCourse,
         topics: (result.topics || []).map((t: any, i: number) => ({
           ...t,
-          position: t.position || i + 1,
+          position: Number(t.position || i + 1),
           is_published: false
         }))
       };
@@ -85,7 +104,8 @@ Zachowaj spójność terminologii i adekwatność do poziomu. Jeśli kurs matura
       setStepData('step2', {
         refined,
         isGenerating: false,
-        error: null
+        error: null,
+        generatedTitle, // zapisujemy do podglądu/przełącznika
       });
     } catch (e) {
       console.error('Błąd generowania:', e);
@@ -104,6 +124,11 @@ Zachowaj spójność terminologii i adekwatność do poziomu. Jeśli kurs matura
       }
     });
   };
+
+  const currentSelectedTitle =
+    (data.titleSource === 'custom' && step1.title?.trim())
+      ? step1.title.trim()
+      : (data.generatedTitle || step1.outline?.title);
 
   return (
     <div className="max-w-7xl mx-auto p-6">
@@ -127,6 +152,44 @@ Zachowaj spójność terminologii i adekwatność do poziomu. Jeśli kurs matura
                 </AlertDescription>
               </Alert>
             )}
+
+            {/* NOWE: wybór źródła tytułu kursu */}
+            <div className="space-y-2">
+              <label className="block text-sm font-medium">Źródło tytułu kursu</label>
+              {step1.title?.trim() ? (
+                <div className="flex flex-col gap-2">
+                  <div className="flex gap-2">
+                    <Button
+                      type="button"
+                      variant={data.titleSource === 'custom' ? 'default' : 'outline'}
+                      onClick={() => setStepData('step2', { titleSource: 'custom' })}
+                      className="flex-1"
+                    >
+                      Moja nazwa
+                    </Button>
+                    <Button
+                      type="button"
+                      variant={data.titleSource === 'generated' ? 'default' : 'outline'}
+                      onClick={() => setStepData('step2', { titleSource: 'generated' })}
+                      className="flex-1"
+                    >
+                      Wygenerowana
+                    </Button>
+                  </div>
+                  <div className="text-xs text-muted-foreground">
+                    • Moja: <strong>{step1.title.trim()}</strong><br />
+                    • Wygenerowana: <strong>{data.generatedTitle || step1.outline?.title}</strong>
+                  </div>
+                  <div className="text-xs">
+                    Zostanie zapisane: <strong>{currentSelectedTitle}</strong>
+                  </div>
+                </div>
+              ) : (
+                <div className="text-xs text-muted-foreground">
+                  Brak własnej nazwy z kroku 1 — zostanie użyta wygenerowana.
+                </div>
+              )}
+            </div>
 
             <div>
               <label className="block text-sm font-medium mb-2">

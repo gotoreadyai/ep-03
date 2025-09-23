@@ -32,6 +32,7 @@ type Step1Data = {
   isGenerating?: boolean;
   outline?: any;
   alignToCurriculum?: boolean;
+  useCustomTitle?: boolean;
 };
 
 const SCHEMA = {
@@ -67,6 +68,7 @@ export function CourseWizardStep1() {
         level: "podstawowy",
         isMaturaCourse: true,
         alignToCurriculum: true,
+        useCustomTitle: false,
       });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -115,8 +117,10 @@ Szkic ma być zwięzły, klarowny i praktyczny dla planowania lekcji. Zadbaj, by
     Boolean(data.isMaturaCourse && latestCurriculum && data.alignToCurriculum);
 
   const previewTitle =
-    data.outline?.title ||
-    (data.subject && data.level ? `${data.subject} — kurs ${data.level}` : "Szkic kursu");
+    (data.useCustomTitle && data.title?.trim())
+      ? data.title!.trim()
+      : (data.outline?.title ||
+         (data.subject && data.level ? `${data.subject} — kurs ${data.level}` : "Szkic kursu"));
 
   const outcomesList = latestCurriculum?.outcomes?.[data.subject as string] ?? [];
 
@@ -129,13 +133,9 @@ Szkic ma być zwięzły, klarowny i praktyczny dla planowania lekcji. Zadbaj, by
             <CardTitle>Parametry kursu</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            <Input
-              placeholder="Tytuł kursu (opcjonalnie)"
-              value={data.title || ""}
-              onChange={(e) => setStepData("step1", { title: e.target.value })}
-              disabled={data.isGenerating}
-            />
+           
 
+            {/* Przedmiot */}
             <Select
               value={data.subject || "Matematyka"}
               onValueChange={(value) => setStepData("step1", { subject: value })}
@@ -153,6 +153,7 @@ Szkic ma być zwięzły, klarowny i praktyczny dla planowania lekcji. Zadbaj, by
               </SelectContent>
             </Select>
 
+            {/* Poziom */}
             <Select
               value={data.level || "podstawowy"}
               onValueChange={(value) => setStepData("step1", { level: value })}
@@ -167,34 +168,64 @@ Szkic ma być zwięzły, klarowny i praktyczny dla planowania lekcji. Zadbaj, by
               </SelectContent>
             </Select>
 
-            <div className="flex items-center gap-2">
-              <Checkbox
-                checked={data.isMaturaCourse || false}
-                onCheckedChange={(checked) =>
-                  setStepData("step1", {
-                    isMaturaCourse: checked,
-                    alignToCurriculum: checked ? data.alignToCurriculum : false,
-                  })
-                }
-                disabled={data.isGenerating}
-              />
-              <span className="text-sm">Kurs maturalny</span>
-            </div>
+             {/* Nazwa kursu */}
+             <Input
+              placeholder="Tytuł kursu (opcjonalnie)"
+              value={data.title || ""}
+              onChange={(e) => setStepData("step1", { title: e.target.value })}
+              disabled={data.isGenerating}
+            />
 
-            <div className="flex items-center gap-2">
-              <Checkbox
-                checked={data.alignToCurriculum || false}
-                onCheckedChange={(checked) => setStepData("step1", { alignToCurriculum: checked })}
-                disabled={data.isGenerating || !data.isMaturaCourse}
-              />
-              <span className="text-sm">
-                Uwzględnij <strong>najnowszą (2025)</strong> podstawę programową LO (PL)
-              </span>
-            </div>
+            {/* 🔸 Delikatna karta z trzema opcjami */}
+            <Card className="bg-muted/40 border-dashed">
+              <CardContent className="space-y-3 pt-4">
+                {(data.title || "").trim() ? (
+                  <div className="flex items-center gap-2">
+                    <Checkbox
+                      checked={Boolean(data.useCustomTitle)}
+                      onCheckedChange={(checked) =>
+                        setStepData("step1", { useCustomTitle: Boolean(checked) })
+                      }
+                      disabled={data.isGenerating}
+                    />
+                    <span className="text-sm">
+                      Użyj <strong>mojej nazwy</strong> przy zapisie (zamiast wygenerowanej)
+                    </span>
+                  </div>
+                ) : null}
 
+                <div className="flex items-center gap-2">
+                  <Checkbox
+                    checked={data.isMaturaCourse || false}
+                    onCheckedChange={(checked) =>
+                      setStepData("step1", {
+                        isMaturaCourse: Boolean(checked),
+                        alignToCurriculum: checked ? data.alignToCurriculum : false,
+                      })
+                    }
+                    disabled={data.isGenerating}
+                  />
+                  <span className="text-sm">Kurs maturalny</span>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <Checkbox
+                    checked={data.alignToCurriculum || false}
+                    onCheckedChange={(checked) =>
+                      setStepData("step1", { alignToCurriculum: Boolean(checked) })
+                    }
+                    disabled={data.isGenerating || !data.isMaturaCourse}
+                  />
+                  <span className="text-sm">
+                    Uwzględnij <strong>najnowszą (2025)</strong> podstawę programową LO (PL)
+                  </span>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Hint o podstawie + lista wymagań (poza kartą, by nie „przeciążać” jej) */}
             {showCurriculumHint && (
               <>
-                {/* Alert + przycisk wewnątrz */}
                 <Alert>
                   <Info className="h-4 w-4" />
                   <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
@@ -245,6 +276,7 @@ Szkic ma być zwięzły, klarowny i praktyczny dla planowania lekcji. Zadbaj, by
           </CardContent>
         </Card>
 
+        {/* Podgląd */}
         <Card>
           <CardHeader>
             <CardTitle>Podgląd szkicu</CardTitle>

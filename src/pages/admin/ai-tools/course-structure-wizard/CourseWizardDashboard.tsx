@@ -25,6 +25,12 @@ export function CourseWizardDashboard() {
     }
   };
 
+  // NOWE: pełne czyszczenie stanu przed startem nowego kursu
+  const handleStartNew = () => {
+    clearAll();
+    navigate("/admin/course-structure/step1", { replace: true });
+  };
+
   return (
     <SubPage>
       <div className="relative overflow-hidden rounded-2xl border mb-6">
@@ -40,11 +46,10 @@ export function CourseWizardDashboard() {
             </p>
           </div>
           <div className="hidden md:block">
-            <Button asChild>
-              <Link to="/admin/course-structure/step1" className="inline-flex items-center gap-2">
-                Nowy kurs
-                <ChevronRight className="w-4 h-4" />
-              </Link>
+            {/* zamiast Link -> przycisk wywołujący clear + navigate */}
+            <Button onClick={handleStartNew} className="inline-flex items-center gap-2">
+              Nowy kurs
+              <ChevronRight className="w-4 h-4" />
             </Button>
           </div>
         </div>
@@ -67,18 +72,15 @@ export function CourseWizardDashboard() {
               </ol>
 
               <div className="mt-4 flex flex-col sm:flex-row gap-2">
-  <Button asChild className="flex-1">
-    <Link to="/admin/course-structure/step1" className="inline-flex items-center gap-2">
-      Rozpocznij
-      <ChevronRight className="w-4 h-4" />
-    </Link>
+  {/* Rozpocznij — czyści stan i przechodzi do Kroku 1 */}
+  <Button onClick={handleStartNew} className="flex-1 inline-flex items-center gap-2">
+    Rozpocznij
+    <ChevronRight className="w-4 h-4" />
   </Button>
-  {(hasStep1 || hasStep2) && (
-    <Button variant="outline" onClick={handleResume} className="flex-1">
-      Wznów pracę
-    </Button>
-  )}
-  {/* 🔽 Nowy przycisk do Kroku 4 */}
+
+  {/* 🔽 Usunięty guzik „Wznów pracę” */}
+
+  {/* Podsumowanie */}
   <Button asChild variant="secondary" className="flex-1">
     <Link to="/admin/course-structure/step4" className="inline-flex items-center gap-2">
       Podsumowanie
@@ -173,11 +175,10 @@ export function CourseWizardDashboard() {
             </div>
 
             <div className="pt-2">
-              <Button asChild variant="outline" className="w-full">
-                <Link to="/admin/course-structure/step1" className="inline-flex items-center justify-center gap-2">
-                  Przejdź do kroku 1
-                  <ChevronRight className="w-4 h-4" />
-                </Link>
+              {/* również czyści przed wejściem */}
+              <Button onClick={handleStartNew} variant="outline" className="w-full inline-flex items-center justify-center gap-2">
+                Przejdź do kroku 1
+                <ChevronRight className="w-4 h-4" />
               </Button>
             </div>
           </CardContent>
