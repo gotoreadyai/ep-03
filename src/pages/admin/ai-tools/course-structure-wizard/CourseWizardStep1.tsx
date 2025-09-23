@@ -56,6 +56,60 @@ const SCHEMA = {
   },
 };
 
+// 🔹 Prosty „Chip” z wyróżnieniem dla wybranego wariantu
+function Chip({
+  children,
+  selected,
+}: {
+  children: React.ReactNode;
+  selected?: boolean;
+}) {
+  return (
+    <span
+      className={[
+        "inline-flex items-center rounded-full px-2 py-0.5 text-xs border",
+        selected
+          ? "bg-primary/10 border-primary text-primary"
+          : "bg-muted border-muted-foreground/20 text-muted-foreground",
+      ].join(" ")}
+    >
+      {children}
+    </span>
+  );
+}
+
+// 🔹 Pokazuje obie wartości, jeśli istnieją; wyróżnia wybraną (z formularza)
+function DualLabel({
+  outlineValue,
+  selectedValue,
+  emptyFallback,
+}: {
+  outlineValue?: string;
+  selectedValue?: string;
+  emptyFallback?: string;
+}) {
+  const o = (outlineValue || "").trim();
+  const s = (selectedValue || "").trim();
+
+  if (!o && !s) return <span className="text-muted-foreground">{emptyFallback || "-"}</span>;
+  if (o && s) {
+    // Jeśli są identyczne – pokaż jeden chip jako wybrany
+    if (o.toLowerCase() === s.toLowerCase()) {
+      return <Chip selected>{s}</Chip>;
+    }
+    // Dwa chipy: wybrany (z formularza) + alternatywa (z outline)
+    return (
+      <span className="inline-flex items-center gap-1">
+        <Chip selected>{s}</Chip>
+        <Chip>{o}</Chip>
+      </span>
+    );
+  }
+  // Tylko jedna wartość – jeśli to z formularza, zaznacz jako selected
+  if (s) return <Chip selected>{s}</Chip>;
+  return <Chip>{o}</Chip>;
+}
+
 export function CourseWizardStep1() {
   const { registerStep, setStepData, getStepData } = useStepStore();
   const data = (getStepData("step1") || {}) as Step1Data;
@@ -133,8 +187,6 @@ Szkic ma być zwięzły, klarowny i praktyczny dla planowania lekcji. Zadbaj, by
             <CardTitle>Parametry kursu</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-           
-
             {/* Przedmiot */}
             <Select
               value={data.subject || "Matematyka"}
@@ -168,8 +220,8 @@ Szkic ma być zwięzły, klarowny i praktyczny dla planowania lekcji. Zadbaj, by
               </SelectContent>
             </Select>
 
-             {/* Nazwa kursu */}
-             <Input
+            {/* Nazwa kursu */}
+            <Input
               placeholder="Tytuł kursu (opcjonalnie)"
               value={data.title || ""}
               onChange={(e) => setStepData("step1", { title: e.target.value })}
@@ -223,7 +275,7 @@ Szkic ma być zwięzły, klarowny i praktyczny dla planowania lekcji. Zadbaj, by
               </CardContent>
             </Card>
 
-            {/* Hint o podstawie + lista wymagań (poza kartą, by nie „przeciążać” jej) */}
+            {/* Hint o podstawie + lista wymagań */}
             {showCurriculumHint && (
               <>
                 <Alert>
@@ -290,10 +342,23 @@ Szkic ma być zwięzły, klarowny i praktyczny dla planowania lekcji. Zadbaj, by
               <div className="space-y-3">
                 <div>
                   <h3 className="font-bold">{previewTitle}</h3>
-                  <p className="text-sm text-muted-foreground">
-                    {data.outline.subject || data.subject} • {data.outline.level || data.level}
-                  </p>
+
+                  {/* 🔻 ZAMIANA: pokazujemy obie wartości i wyróżniamy wybraną */}
+                  <div className="mt-1 flex items-center gap-2 flex-wrap">
+                    <DualLabel
+                      outlineValue={data.outline.subject}
+                      selectedValue={data.subject}
+                      emptyFallback="Przedmiot"
+                    />
+                    <span className="text-muted-foreground">•</span>
+                    <DualLabel
+                      outlineValue={data.outline.level}
+                      selectedValue={data.level}
+                      emptyFallback="Poziom"
+                    />
+                  </div>
                 </div>
+
                 <div className="space-y-2 max-h-96 overflow-auto pr-1">
                   {data.outline.topics?.map((t: any, i: number) => (
                     <Card key={i} className="p-3">
