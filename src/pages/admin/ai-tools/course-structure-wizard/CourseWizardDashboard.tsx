@@ -67,18 +67,25 @@ export function CourseWizardDashboard() {
               </ol>
 
               <div className="mt-4 flex flex-col sm:flex-row gap-2">
-                <Button asChild className="flex-1">
-                  <Link to="/admin/course-structure/step1" className="inline-flex items-center gap-2">
-                    Rozpocznij
-                    <ChevronRight className="w-4 h-4" />
-                  </Link>
-                </Button>
-                {(hasStep1 || hasStep2) && (
-                  <Button variant="outline" onClick={handleResume} className="flex-1">
-                    Wznów pracę
-                  </Button>
-                )}
-              </div>
+  <Button asChild className="flex-1">
+    <Link to="/admin/course-structure/step1" className="inline-flex items-center gap-2">
+      Rozpocznij
+      <ChevronRight className="w-4 h-4" />
+    </Link>
+  </Button>
+  {(hasStep1 || hasStep2) && (
+    <Button variant="outline" onClick={handleResume} className="flex-1">
+      Wznów pracę
+    </Button>
+  )}
+  {/* 🔽 Nowy przycisk do Kroku 4 */}
+  <Button asChild variant="secondary" className="flex-1">
+    <Link to="/admin/course-structure/step4" className="inline-flex items-center gap-2">
+      Podsumowanie
+      <ChevronRight className="w-4 h-4" />
+    </Link>
+  </Button>
+</div>
             </div>
 
             {(hasStep1 || hasStep2) ? (

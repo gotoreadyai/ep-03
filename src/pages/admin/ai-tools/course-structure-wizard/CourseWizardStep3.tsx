@@ -99,8 +99,19 @@ export function CourseWizardStep3() {
         });
       }
 
+      // przejście do Kroku 4 (podsumowanie + link do listy kursów)
+      const topicsCount = refined.topics?.length || 0;
+      navigate("/admin/course-structure/step4", {
+        replace: true,
+        state: {
+          courseId: courseIdNumber,
+          courseTitle: refined.courseTitle,
+          topicsCount,
+        },
+      });
+
+      // czyścimy dopiero po nawigacji, żeby Step4 miał state
       clearAll();
-      navigate("/admin/ai-tools", { replace: true });
     } catch (e: any) {
       console.error("Błąd zapisu:", e);
       setError(e?.message || "Nie udało się zapisać kursu.");
