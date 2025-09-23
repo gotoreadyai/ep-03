@@ -1,12 +1,12 @@
-/*
 // src/pages/admin/ai-tools/course-structure-wizard/index.tsx
-*/
+
 import { Route } from "react-router";
 import { CourseWizardDashboard } from "./CourseWizardDashboard";
 import { CourseWizardStep1 } from "./CourseWizardStep1";
 import { CourseWizardStep2 } from "./CourseWizardStep2";
 import { CourseWizardStep3 } from "./CourseWizardStep3";
 import { CourseWizardStep4 } from "./CourseWizardStep4";
+import { CourseWizardStep5 } from "./CourseWizardStep5";
 import { Wand } from "lucide-react";
 
 // Eksport komponentów
@@ -15,6 +15,7 @@ export { CourseWizardStep1 } from './CourseWizardStep1';
 export { CourseWizardStep2 } from './CourseWizardStep2';
 export { CourseWizardStep3 } from './CourseWizardStep3';
 export { CourseWizardStep4 } from './CourseWizardStep4';
+export { CourseWizardStep5 } from './CourseWizardStep5';
 
 // Routes
 export const courseStructureRoutes = [
@@ -23,6 +24,7 @@ export const courseStructureRoutes = [
   <Route key="course-step2" path="/course-structure/step2" element={<CourseWizardStep2 />} />,
   <Route key="course-step3" path="/course-structure/step3" element={<CourseWizardStep3 />} />,
   <Route key="course-step4" path="/course-structure/step4" element={<CourseWizardStep4 />} />,
+  <Route key="course-step5" path="/course-structure/step5" element={<CourseWizardStep5 />} />,
 ];
 
 // Resource definition
