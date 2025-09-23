@@ -56,59 +56,99 @@ const SCHEMA = {
   },
 };
 
-// 🔹 Prosty „Chip” z wyróżnieniem dla wybranego wariantu
-function Chip({
+// ───────────────────────── helpers ─────────────────────────
+
+function Row({
+  label,
   children,
-  selected,
+  muted,
 }: {
-  children: React.ReactNode;
-  selected?: boolean;
+  label: string;
+  children?: React.ReactNode;
+  muted?: boolean;
 }) {
   return (
-    <span
-      className={[
-        "inline-flex items-center rounded-full px-2 py-0.5 text-xs border",
-        selected
-          ? "bg-primary/10 border-primary text-primary"
-          : "bg-muted border-muted-foreground/20 text-muted-foreground",
-      ].join(" ")}
-    >
+    <div className="flex items-start gap-2 text-sm">
+      <span className="min-w-[110px] text-xs uppercase tracking-wide text-muted-foreground">
+        {label}
+      </span>
+      <span className={muted ? "text-muted-foreground" : ""}>{children}</span>
+    </div>
+  );
+}
+
+// Porównanie dwóch nazw – prosto, bez chipów
+function NamesCompare({
+  custom,
+  generated,
+  activeIsCustom,
+}: {
+  custom?: string;
+  generated?: string;
+  activeIsCustom: boolean;
+}) {
+  const c = (custom || "").trim();
+  const g = (generated || "").trim();
+  if (!c && !g) return null;
+
+  return (
+    <div className="space-y-1">
+        <span className="text-xs text-primary/80">NAZWA KURSU</span>
+     
+        <div>
+          {" "}
+          <span className={activeIsCustom ? "font-medium" : ""}>{c}</span>
+          {activeIsCustom && (
+            <span className="ml-2 text-xs text-primary/80">(aktywna)</span>
+          )}
+        </div>
+     
+     
+        <div>
+          <span className={!activeIsCustom ? "font-medium" : ""}>{g}</span>
+          {!activeIsCustom && (
+            <span className="ml-2 text-xs text-primary/80">(aktywna)</span>
+          )}
+        </div>
+     
+    </div>
+  );
+}
+
+// Badge (chip) w stylu „aktywny”
+function ActiveBadge({ children }: { children: React.ReactNode }) {
+  return (
+    <span className="inline-flex items-center rounded-full px-2 py-0.5 text-xs border bg-primary/10 border-primary text-primary">
       {children}
     </span>
   );
 }
 
-// 🔹 Pokazuje obie wartości, jeśli istnieją; wyróżnia wybraną (z formularza)
-function DualLabel({
-  outlineValue,
-  selectedValue,
-  emptyFallback,
+// Szczegóły – TYLKO 3 badge z aktywnymi wartościami
+function Details({
+  subjectActive,
+  levelActive,
+  isMatura,
 }: {
-  outlineValue?: string;
-  selectedValue?: string;
-  emptyFallback?: string;
+  subjectActive?: string;
+  levelActive?: string;
+  isMatura?: boolean;
 }) {
-  const o = (outlineValue || "").trim();
-  const s = (selectedValue || "").trim();
-
-  if (!o && !s) return <span className="text-muted-foreground">{emptyFallback || "-"}</span>;
-  if (o && s) {
-    // Jeśli są identyczne – pokaż jeden chip jako wybrany
-    if (o.toLowerCase() === s.toLowerCase()) {
-      return <Chip selected>{s}</Chip>;
-    }
-    // Dwa chipy: wybrany (z formularza) + alternatywa (z outline)
-    return (
-      <span className="inline-flex items-center gap-1">
-        <Chip selected>{s}</Chip>
-        <Chip>{o}</Chip>
-      </span>
-    );
-  }
-  // Tylko jedna wartość – jeśli to z formularza, zaznacz jako selected
-  if (s) return <Chip selected>{s}</Chip>;
-  return <Chip>{o}</Chip>;
+  return (
+    <div className="space-y-2">
+      <div className="text-[10px] uppercase tracking-wide text-muted-foreground">
+        Szczegóły
+      </div>
+      <div className="flex items-center gap-2 flex-wrap">
+        {subjectActive && <ActiveBadge>{subjectActive}</ActiveBadge>}
+        {levelActive && <ActiveBadge>{levelActive}</ActiveBadge>}
+        <ActiveBadge>{isMatura ? "maturalny" : "niematuralny"}</ActiveBadge>
+      </div>
+    </div>
+  );
 }
+
+// ───────────────────────── component ─────────────────────────
 
 export function CourseWizardStep1() {
   const { registerStep, setStepData, getStepData } = useStepStore();
@@ -138,12 +178,15 @@ export function CourseWizardStep1() {
   const generate = async () => {
     setStepData("step1", { isGenerating: true });
     try {
-      const outcomes = latestCurriculum?.outcomes?.[data.subject as string] ?? [];
+      const outcomes =
+        latestCurriculum?.outcomes?.[data.subject as string] ?? [];
       const curriculumPrompt =
         data.isMaturaCourse && data.alignToCurriculum && latestCurriculum
           ? `
 Uwzględnij zgodność z podstawą programową LO (PL).
-(Dokument: ${latestCurriculum.label}${latestCurriculum.year ? ` • ${latestCurriculum.year}` : ""})
+(Dokument: ${latestCurriculum.label}${
+              latestCurriculum.year ? ` • ${latestCurriculum.year}` : ""
+            })
 Wymagania do pokrycia:
 ${outcomes.map((o, i) => `${i + 1}. ${o}`).join("\n")}
 Jeśli to możliwe, sygnalizuj pokrycie wymagań w nawiasie, np. "[PP]".
@@ -167,21 +210,29 @@ Szkic ma być zwięzły, klarowny i praktyczny dla planowania lekcji. Zadbaj, by
     }
   };
 
-  const showCurriculumHint =
-    Boolean(data.isMaturaCourse && latestCurriculum && data.alignToCurriculum);
+  const showCurriculumHint = Boolean(
+    data.isMaturaCourse && latestCurriculum && data.alignToCurriculum
+  );
 
-  const previewTitle =
-    (data.useCustomTitle && data.title?.trim())
-      ? data.title!.trim()
-      : (data.outline?.title ||
-         (data.subject && data.level ? `${data.subject} — kurs ${data.level}` : "Szkic kursu"));
+  // ——— aktywna nazwa + porównanie
+  const formTitle = (data.title || "").trim();
+  const generatedTitle = (data.outline?.title || "").trim();
+  const activeIsCustom = Boolean(data.useCustomTitle && formTitle);
+  const previewTitle = activeIsCustom
+    ? formTitle
+    : generatedTitle ||
+      (data.subject && data.level
+        ? `${data.subject} — kurs ${data.level}`
+        : "Szkic kursu");
 
-  const outcomesList = latestCurriculum?.outcomes?.[data.subject as string] ?? [];
+  const outcomesList =
+    latestCurriculum?.outcomes?.[data.subject as string] ?? [];
 
   return (
     <SubPage>
       <Lead title="Krok 1 " description="Szkic kursu" />
       <div className="grid grid-cols-2 gap-6">
+        {/* Lewy panel: parametry */}
         <Card>
           <CardHeader>
             <CardTitle>Parametry kursu</CardTitle>
@@ -190,7 +241,9 @@ Szkic ma być zwięzły, klarowny i praktyczny dla planowania lekcji. Zadbaj, by
             {/* Przedmiot */}
             <Select
               value={data.subject || "Matematyka"}
-              onValueChange={(value) => setStepData("step1", { subject: value })}
+              onValueChange={(value) =>
+                setStepData("step1", { subject: value })
+              }
               disabled={data.isGenerating}
             >
               <SelectTrigger>
@@ -228,7 +281,7 @@ Szkic ma być zwięzły, klarowny i praktyczny dla planowania lekcji. Zadbaj, by
               disabled={data.isGenerating}
             />
 
-            {/* 🔸 Delikatna karta z trzema opcjami */}
+            {/* Opcje */}
             <Card className="bg-muted/40 border-dashed">
               <CardContent className="space-y-3 pt-4">
                 {(data.title || "").trim() ? (
@@ -236,12 +289,15 @@ Szkic ma być zwięzły, klarowny i praktyczny dla planowania lekcji. Zadbaj, by
                     <Checkbox
                       checked={Boolean(data.useCustomTitle)}
                       onCheckedChange={(checked) =>
-                        setStepData("step1", { useCustomTitle: Boolean(checked) })
+                        setStepData("step1", {
+                          useCustomTitle: Boolean(checked),
+                        })
                       }
                       disabled={data.isGenerating}
                     />
                     <span className="text-sm">
-                      Użyj <strong>mojej nazwy</strong> przy zapisie (zamiast wygenerowanej)
+                      Użyj <strong>mojej nazwy</strong> przy zapisie (zamiast
+                      wygenerowanej)
                     </span>
                   </div>
                 ) : null}
@@ -252,7 +308,9 @@ Szkic ma być zwięzły, klarowny i praktyczny dla planowania lekcji. Zadbaj, by
                     onCheckedChange={(checked) =>
                       setStepData("step1", {
                         isMaturaCourse: Boolean(checked),
-                        alignToCurriculum: checked ? data.alignToCurriculum : false,
+                        alignToCurriculum: checked
+                          ? data.alignToCurriculum
+                          : false,
                       })
                     }
                     disabled={data.isGenerating}
@@ -264,18 +322,21 @@ Szkic ma być zwięzły, klarowny i praktyczny dla planowania lekcji. Zadbaj, by
                   <Checkbox
                     checked={data.alignToCurriculum || false}
                     onCheckedChange={(checked) =>
-                      setStepData("step1", { alignToCurriculum: Boolean(checked) })
+                      setStepData("step1", {
+                        alignToCurriculum: Boolean(checked),
+                      })
                     }
                     disabled={data.isGenerating || !data.isMaturaCourse}
                   />
                   <span className="text-sm">
-                    Uwzględnij <strong>najnowszą (2025)</strong> podstawę programową LO (PL)
+                    Uwzględnij <strong>najnowszą (2025)</strong> podstawę
+                    programową LO (PL)
                   </span>
                 </div>
               </CardContent>
             </Card>
 
-            {/* Hint o podstawie + lista wymagań */}
+            {/* Podstawa programowa – hint + lista wymagań */}
             {showCurriculumHint && (
               <>
                 <Alert>
@@ -283,7 +344,9 @@ Szkic ma być zwięzły, klarowny i praktyczny dla planowania lekcji. Zadbaj, by
                   <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
                     <AlertDescription className="text-xs">
                       Dokument: <strong>{latestCurriculum?.label}</strong>
-                      {latestCurriculum?.year ? ` • ${latestCurriculum.year}` : ""}
+                      {latestCurriculum?.year
+                        ? ` • ${latestCurriculum.year}`
+                        : ""}
                     </AlertDescription>
 
                     {outcomesList.length > 0 && (
@@ -305,14 +368,20 @@ Szkic ma być zwięzły, klarowny i praktyczny dla planowania lekcji. Zadbaj, by
                 {showOutcomes && (
                   <ul className="text-xs list-disc pl-5 space-y-1 max-h-40 overflow-auto rounded-md border p-2">
                     {outcomesList.map((o, i) => (
-                      <li key={i} className="leading-snug">{o}</li>
+                      <li key={i} className="leading-snug">
+                        {o}
+                      </li>
                     ))}
                   </ul>
                 )}
               </>
             )}
 
-            <Button onClick={generate} disabled={data.isGenerating} className="w-full">
+            <Button
+              onClick={generate}
+              disabled={data.isGenerating}
+              className="w-full"
+            >
               {data.isGenerating ? (
                 <>
                   <Loader2 className="w-4 h-4 animate-spin" />
@@ -328,7 +397,7 @@ Szkic ma być zwięzły, klarowny i praktyczny dla planowania lekcji. Zadbaj, by
           </CardContent>
         </Card>
 
-        {/* Podgląd */}
+        {/* Prawy panel: podgląd */}
         <Card>
           <CardHeader>
             <CardTitle>Podgląd szkicu</CardTitle>
@@ -339,34 +408,36 @@ Szkic ma być zwięzły, klarowny i praktyczny dla planowania lekcji. Zadbaj, by
                 <Loader2 className="w-6 h-6 animate-spin" />
               </div>
             ) : data.outline ? (
-              <div className="space-y-3">
-                <div>
-                  <h3 className="font-bold">{previewTitle}</h3>
+              <div className="space-y-5">
+              
+                {/* 2) Porównanie nazw */}
+                <NamesCompare
+                  custom={formTitle}
+                  generated={generatedTitle}
+                  activeIsCustom={activeIsCustom}
+                />
 
-                  {/* 🔻 ZAMIANA: pokazujemy obie wartości i wyróżniamy wybraną */}
-                  <div className="mt-1 flex items-center gap-2 flex-wrap">
-                    <DualLabel
-                      outlineValue={data.outline.subject}
-                      selectedValue={data.subject}
-                      emptyFallback="Przedmiot"
-                    />
-                    <span className="text-muted-foreground">•</span>
-                    <DualLabel
-                      outlineValue={data.outline.level}
-                      selectedValue={data.level}
-                      emptyFallback="Poziom"
-                    />
-                  </div>
-                </div>
+                {/* 3) Szczegóły – dokładnie 3 badge */}
+                <Details
+                  subjectActive={data.subject}
+                  levelActive={data.level}
+                  isMatura={data.isMaturaCourse}
+                />
 
+                {/* 4) Tematy */}
                 <div className="space-y-2 max-h-96 overflow-auto pr-1">
                   {data.outline.topics?.map((t: any, i: number) => (
                     <Card key={i} className="p-3">
-                      <div className="font-medium">{i + 1}. {t.title}</div>
-                      <div className="text-sm text-muted-foreground">{t.description}</div>
+                      <div className="font-medium">
+                        {i + 1}. {t.title}
+                      </div>
+                      <div className="text-sm text-muted-foreground">
+                        {t.description}
+                      </div>
                     </Card>
                   ))}
                 </div>
+
                 <Button asChild className="w-full">
                   <Link to="/admin/course-structure/step2">Dalej →</Link>
                 </Button>
