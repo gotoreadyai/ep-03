@@ -1,10 +1,10 @@
 // src/pages/admin/ai-tools/course-structure-wizard/CourseWizardStep2.tsx
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { callLLM } from '@/utility/llmService';
+import { callLLM, LLMError } from '@/utility/llmService';
 import { SnapshotBar, useStepStore } from '@/utility/formWizard';
-import { Loader2, Sparkles, ChevronRight, AlertCircle } from 'lucide-react';
-import { Input, Button, Card, CardHeader, CardTitle, CardContent, Alert, AlertDescription, ScrollArea } from '@/components/ui';
+import { Loader2, Sparkles, ChevronRight, AlertCircle, ChevronDown, ChevronUp } from 'lucide-react';
+import { Input, Button, Card, CardHeader, CardTitle, CardContent, Alert, AlertDescription, ScrollArea, Textarea } from '@/components/ui';
 
 const SCHEMA = {
   type: 'object',
@@ -30,11 +30,15 @@ const SCHEMA = {
   }
 };
 
+// Bezpieczny bufor vs. limity backendu (np. 1000 znaków)
+const SAFE_PROMPT_LIMIT = 950;
+
 export function CourseWizardStep2() {
   const { registerStep, setStepData, getStepData } = useStepStore();
   const navigate = useNavigate();
   const step1 = getStepData('step1') || {};
   const data = getStepData('step2') || {};
+  const [showErrorDetails, setShowErrorDetails] = useState(false);
 
   useEffect(() => {
     registerStep('step2', SCHEMA);
@@ -58,9 +62,10 @@ export function CourseWizardStep2() {
       return;
     }
 
-    setStepData('step2', { isGenerating: true, error: null });
+    setStepData('step2', { isGenerating: true, error: null, errorDetails: null });
 
-    const prompt = `
+    // Zbuduj promt
+    let prompt = `
 Rozwiń szkic kursu do dokładnie ${data.targetCount} tematów lekcji, logicznie uporządkowanych od podstaw do bardziej zaawansowanych.
 Wygeneruj tytuły i krótkie opisy (2–3 zdania) z perspektywy nauczyciela przygotowującego plan pracy.
 Kontekst:
@@ -68,10 +73,15 @@ Kontekst:
 - przedmiot: ${step1.outline.subject}
 - poziom: ${step1.outline.level}
 - kurs ${step1.outline.isMaturaCourse ? 'maturalny' : 'niematuralny'}
-- główne tematy szkicu: ${step1.outline.topics?.map((t: any) => t.title).join(', ')}
+- główne tematy szkicu: ${(step1.outline.topics || []).map((t: any) => t.title).join(', ')}
 
 Zachowaj spójność terminologii i adekwatność do poziomu. Jeśli kurs maturalny — uwzględnij wymagania egzaminacyjne w zakresie doboru tematów.
     `.trim();
+
+    // Opcjonalne przycięcie, jeżeli backend ma niski maxMessageLength
+    if (prompt.length > SAFE_PROMPT_LIMIT) {
+      prompt = prompt.slice(0, SAFE_PROMPT_LIMIT - 3) + '...';
+    }
 
     try {
       const result = await callLLM(prompt, SCHEMA);
@@ -105,13 +115,29 @@ Zachowaj spójność terminologii i adekwatność do poziomu. Jeśli kurs matura
         refined,
         isGenerating: false,
         error: null,
+        errorDetails: null,
         generatedTitle, // zapisujemy do podglądu/przełącznika
       });
-    } catch (e) {
+    } catch (e: any) {
       console.error('Błąd generowania:', e);
+      // Zbierz szczegóły
+      let details: any = undefined;
+      if (e instanceof LLMError) {
+        details = {
+          message: e.message,
+          status: e.status,
+          ...((e.info && typeof e.info === 'object') ? e.info : { raw: e.info })
+        };
+      } else if (e instanceof Error) {
+        details = { message: e.message };
+      } else {
+        details = { error: e };
+      }
+
       setStepData('step2', {
         isGenerating: false,
-        error: 'Nie udało się wygenerować tematów. Spróbuj ponownie.'
+        error: 'Nie udało się wygenerować tematów. Spróbuj ponownie.',
+        errorDetails: details
       });
     }
   };
@@ -209,10 +235,53 @@ Zachowaj spójność terminologii i adekwatność do poziomu. Jeśli kurs matura
             </div>
 
             {data.error && (
-              <Alert variant="destructive">
-                <AlertCircle className="h-4 w-4" />
-                <AlertDescription>{data.error}</AlertDescription>
-              </Alert>
+              <div className="space-y-2">
+                <Alert variant="destructive">
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertDescription>{data.error}</AlertDescription>
+                </Alert>
+
+                {/* SZCZEGÓŁY BŁĘDU (składane) */}
+                {data.errorDetails && (
+                  <Card>
+                    <CardHeader className="py-3">
+                      <div className="flex items-center justify-between">
+                        <CardTitle className="text-sm">Szczegóły błędu</CardTitle>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setShowErrorDetails(v => !v)}
+                          className="h-7"
+                        >
+                          {showErrorDetails ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                        </Button>
+                      </div>
+                    </CardHeader>
+                    {showErrorDetails && (
+                      <CardContent className="pt-0">
+                        <Textarea
+                          className="font-mono text-xs h-40"
+                          readOnly
+                          value={JSON.stringify(data.errorDetails, null, 2)}
+                        />
+                        {/* Przyjazna interpretacja znanych błędów */}
+                        {'limits' in data.errorDetails && (
+                          <div className="text-xs text-muted-foreground mt-2">
+                            <strong>Wskazówka:</strong> Twoja wiadomość mogła przekroczyć limit ({data.errorDetails.limits?.maxMessageLength} znaków).
+                            Spróbuj zmniejszyć liczbę tematów lub usunąć część kontekstu.
+                          </div>
+                        )}
+                        {typeof data.errorDetails?.status === 'number' && data.errorDetails.status >= 500 && (
+                          <div className="text-xs text-muted-foreground mt-2">
+                            <strong>Wskazówka:</strong> Usługa modelu chwilowo przeciążona (HTTP {data.errorDetails.status}).
+                            Spróbuj ponownie za chwilę.
+                          </div>
+                        )}
+                      </CardContent>
+                    )}
+                  </Card>
+                )}
+              </div>
             )}
 
             <Button
