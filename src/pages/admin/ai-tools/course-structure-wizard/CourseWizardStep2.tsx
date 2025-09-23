@@ -30,8 +30,13 @@ const SCHEMA = {
   }
 };
 
-// Bezpieczny bufor vs. limity backendu (np. 1000 znaków)
 const SAFE_PROMPT_LIMIT = 950;
+
+// normalizacja na wartości zgodne z CHECK w DB
+function normalizeLevel(raw: unknown): 'podstawowy' | 'rozszerzony' {
+  const v = String(raw ?? '').trim().toLowerCase();
+  return v === 'rozszerzony' ? 'rozszerzony' : 'podstawowy';
+}
 
 export function CourseWizardStep2() {
   const { registerStep, setStepData, getStepData } = useStepStore();
@@ -45,7 +50,6 @@ export function CourseWizardStep2() {
     if (!data.targetCount) {
       setStepData('step2', { targetCount: 15 });
     }
-    // domyślne źródło tytułu: z preferencji z kroku 1
     if (!data.titleSource) {
       const defaultSource = step1.useCustomTitle && step1.title?.trim() ? 'custom' : 'generated';
       setStepData('step2', { titleSource: defaultSource });
@@ -64,21 +68,25 @@ export function CourseWizardStep2() {
 
     setStepData('step2', { isGenerating: true, error: null, errorDetails: null });
 
-    // Zbuduj promt
+    // ✅ Bierzemy metadane TYLKO z UI (stabilne), nie z LLM
+    const uiSubject = String(step1.subject || step1.outline?.subject || '').trim();
+    const uiLevel = normalizeLevel(step1.level || step1.outline?.level);
+    const isMaturaCourse = Boolean(step1.isMaturaCourse ?? step1.outline?.isMaturaCourse);
+
+    // prompt oparty o UI
     let prompt = `
 Rozwiń szkic kursu do dokładnie ${data.targetCount} tematów lekcji, logicznie uporządkowanych od podstaw do bardziej zaawansowanych.
 Wygeneruj tytuły i krótkie opisy (2–3 zdania) z perspektywy nauczyciela przygotowującego plan pracy.
 Kontekst:
 - tytuł szkicu: ${step1.outline.title}
-- przedmiot: ${step1.outline.subject}
-- poziom: ${step1.outline.level}
-- kurs ${step1.outline.isMaturaCourse ? 'maturalny' : 'niematuralny'}
+- przedmiot: ${uiSubject}
+- poziom: ${uiLevel}
+- kurs ${isMaturaCourse ? 'maturalny' : 'niematuralny'}
 - główne tematy szkicu: ${(step1.outline.topics || []).map((t: any) => t.title).join(', ')}
 
 Zachowaj spójność terminologii i adekwatność do poziomu. Jeśli kurs maturalny — uwzględnij wymagania egzaminacyjne w zakresie doboru tematów.
     `.trim();
 
-    // Opcjonalne przycięcie, jeżeli backend ma niski maxMessageLength
     if (prompt.length > SAFE_PROMPT_LIMIT) {
       prompt = prompt.slice(0, SAFE_PROMPT_LIMIT - 3) + '...';
     }
@@ -86,24 +94,21 @@ Zachowaj spójność terminologii i adekwatność do poziomu. Jeśli kurs matura
     try {
       const result = await callLLM(prompt, SCHEMA);
 
-      // Tytuł wygenerowany przez LLM (fallback na szkic z kroku 1)
       const generatedTitle = result.courseTitle || result.title || step1.outline.title;
-
-      // Aktualna preferencja użytkownika (krok 2), fallback – preferencja z kroku 1
       const titleSource = data.titleSource || (step1.useCustomTitle && step1.title?.trim() ? 'custom' : 'generated');
 
-      // Ostateczny tytuł do zapisu
       const finalTitle =
         titleSource === 'custom' && step1.title?.trim()
           ? step1.title.trim()
           : generatedTitle;
 
+      // ✅ Nadpisujemy wynik LLM wartościami z UI (unikamy „Podstawowy/ Rozszerzony” itp.)
       const refined = {
         ...result,
         courseTitle: finalTitle,
-        subject: result.subject || step1.outline.subject,
-        level: result.level || step1.outline.level,
-        isMaturaCourse: result.isMaturaCourse ?? step1.outline.isMaturaCourse,
+        subject: uiSubject,
+        level: uiLevel,
+        isMaturaCourse,
         topics: (result.topics || []).map((t: any, i: number) => ({
           ...t,
           position: Number(t.position || i + 1),
@@ -116,11 +121,10 @@ Zachowaj spójność terminologii i adekwatność do poziomu. Jeśli kurs matura
         isGenerating: false,
         error: null,
         errorDetails: null,
-        generatedTitle, // zapisujemy do podglądu/przełącznika
+        generatedTitle,
       });
     } catch (e: any) {
       console.error('Błąd generowania:', e);
-      // Zbierz szczegóły
       let details: any = undefined;
       if (e instanceof LLMError) {
         details = {
@@ -172,14 +176,14 @@ Zachowaj spójność terminologii i adekwatność do poziomu. Jeśli kurs matura
                 <AlertDescription>
                   <strong>Rozwijamy kurs:</strong> {step1.outline.title}<br />
                   <span className="text-muted-foreground">
-                    {step1.outline.subject} • {step1.outline.level}
-                    {step1.outline.isMaturaCourse && ' • Maturalny'}
+                    {String(step1.subject || step1.outline.subject)} • {String(step1.level || step1.outline.level)}
+                    {Boolean(step1.isMaturaCourse || step1.outline.isMaturaCourse) && ' • Maturalny'}
                   </span>
                 </AlertDescription>
               </Alert>
             )}
 
-            {/* NOWE: wybór źródła tytułu kursu */}
+            {/* Źródło tytułu kursu */}
             <div className="space-y-2">
               <label className="block text-sm font-medium">Źródło tytułu kursu</label>
               {step1.title?.trim() ? (
@@ -241,7 +245,6 @@ Zachowaj spójność terminologii i adekwatność do poziomu. Jeśli kurs matura
                   <AlertDescription>{data.error}</AlertDescription>
                 </Alert>
 
-                {/* SZCZEGÓŁY BŁĘDU (składane) */}
                 {data.errorDetails && (
                   <Card>
                     <CardHeader className="py-3">
@@ -264,7 +267,6 @@ Zachowaj spójność terminologii i adekwatność do poziomu. Jeśli kurs matura
                           readOnly
                           value={JSON.stringify(data.errorDetails, null, 2)}
                         />
-                        {/* Przyjazna interpretacja znanych błędów */}
                         {'limits' in data.errorDetails && (
                           <div className="text-xs text-muted-foreground mt-2">
                             <strong>Wskazówka:</strong> Twoja wiadomość mogła przekroczyć limit ({data.errorDetails.limits?.maxMessageLength} znaków).
@@ -321,7 +323,7 @@ Zachowaj spójność terminologii i adekwatność do poziomu. Jeśli kurs matura
           <CardHeader>
             <CardTitle>Podgląd tematów</CardTitle>
           </CardHeader>
-          <CardContent>
+        <CardContent>
             {data.isGenerating ? (
               <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
                 <Loader2 className="w-8 h-8 animate-spin mb-3" />
@@ -338,6 +340,9 @@ Zachowaj spójność terminologii i adekwatność do poziomu. Jeśli kurs matura
                         {data.refined.courseDescription}
                       </p>
                     )}
+                    <p className="text-xs text-muted-foreground mt-2">
+                      {data.refined.subject} • {data.refined.level}{data.refined.isMaturaCourse ? ' • Maturalny' : ''}
+                    </p>
                   </CardContent>
                 </Card>
 

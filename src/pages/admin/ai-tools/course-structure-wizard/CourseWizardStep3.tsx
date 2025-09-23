@@ -7,6 +7,12 @@ import { useStepStore } from "@/utility/formWizard";
 import { Save, ArrowLeft, Loader2, CheckCircle, AlertCircle } from "lucide-react";
 import { Button, Card, CardHeader, CardTitle, CardContent, Alert, AlertDescription, Progress, ScrollArea } from '@/components/ui';
 
+// normalizacja level -> baza pozwala tylko 'podstawowy' | 'rozszerzony'
+function normalizeLevel(raw: unknown): "podstawowy" | "rozszerzony" {
+  const v = String(raw ?? "").trim().toLowerCase();
+  return v === "rozszerzony" ? "rozszerzony" : "podstawowy";
+}
+
 export function CourseWizardStep3() {
   const navigate = useNavigate();
   const location = useLocation() as any;
@@ -41,6 +47,11 @@ export function CourseWizardStep3() {
     setSavedTopics(0);
 
     try {
+      // 🔽 Normalizacja pól pod bazę
+      const levelDb = normalizeLevel(refined.level);
+      const subjectDb = String(refined.subject ?? outline?.subject ?? "").trim();
+      const isExamCourseDb = Boolean(refined.isMaturaCourse);
+
       // 1) Zapis kursu
       const courseId = await new Promise<BaseKey>((resolve, reject) => {
         createCourse(
@@ -52,6 +63,11 @@ export function CourseWizardStep3() {
               vendor_id: Number(identity?.vendor_id ?? 0),
               is_published: false,
               icon_emoji: outline?.icon_emoji || "📚",
+
+              // 🔽 nowe pola zgodne z bazą
+              subject: subjectDb,
+              level: levelDb,
+              is_exam_course: isExamCourseDb,
             },
           },
           {
@@ -66,9 +82,10 @@ export function CourseWizardStep3() {
       });
 
       setSavedCourseId(courseId);
-      const courseIdNumber = typeof courseId === "string" ? parseInt(courseId, 10) : (courseId as number);
+      const courseIdNumber =
+        typeof courseId === "string" ? parseInt(courseId, 10) : (courseId as number);
 
-      // 2) Zapis tematów — bez 'description', bo nie istnieje w tabeli
+      // 2) Zapis tematów
       const total = refined.topics?.length || 0;
       for (let i = 0; i < total; i++) {
         const t = refined.topics[i];
@@ -89,17 +106,13 @@ export function CourseWizardStep3() {
                 setSavedTopics((prev) => prev + 1);
                 resolve();
               },
-              onError: (err) => {
-                console.error(`Błąd zapisu tematu ${i + 1}/${total}`, err);
-                // kontynuujemy mimo błędu pojedynczego tematu
-                resolve();
-              },
+              onError: () => resolve(), // pojedynczy błąd tematu nie przerywa zapisu
             }
           );
         });
       }
 
-      // przejście do Kroku 4 (podsumowanie + link do listy kursów)
+      // 3) przejście do podsumowania
       const topicsCount = refined.topics?.length || 0;
       navigate("/admin/course-structure/step4", {
         replace: true,
@@ -110,7 +123,6 @@ export function CourseWizardStep3() {
         },
       });
 
-      // czyścimy dopiero po nawigacji, żeby Step4 miał state
       clearAll();
     } catch (e: any) {
       console.error("Błąd zapisu:", e);
@@ -128,7 +140,8 @@ export function CourseWizardStep3() {
             <Alert variant="destructive">
               <AlertCircle className="h-4 w-4" />
               <AlertDescription>
-                <span className="font-medium">Brak danych do zapisu</span><br />
+                <span className="font-medium">Brak danych do zapisu</span>
+                <br />
                 Wróć do kroku 2 i wygeneruj tematy kursu.
               </AlertDescription>
             </Alert>
@@ -144,7 +157,8 @@ export function CourseWizardStep3() {
     );
   }
 
-  const progressPercentage = refined.topics?.length > 0 ? (savedTopics / refined.topics.length) * 100 : 0;
+  const progressPercentage =
+    refined.topics?.length > 0 ? (savedTopics / refined.topics.length) * 100 : 0;
 
   return (
     <div className="max-w-7xl mx-auto p-6">
@@ -167,7 +181,7 @@ export function CourseWizardStep3() {
                 </p>
               )}
               <div className="text-xs text-muted-foreground mt-2">
-                {refined.subject} • {String(refined.level)} 
+                {refined.subject} • {String(refined.level)}
                 {refined.isMaturaCourse ? " • Maturalny" : ""}
               </div>
             </div>
@@ -180,7 +194,10 @@ export function CourseWizardStep3() {
                 <div className="space-y-1 text-sm">
                   {refined.topics.slice(0, 12).map((t: any, i: number) => (
                     <div key={i} className="border-l-2 border-muted pl-2">
-                      <span className="text-muted-foreground">{Number(t.position ?? i + 1)}.</span> {t.title}
+                      <span className="text-muted-foreground">
+                        {Number(t.position ?? i + 1)}.
+                      </span>{" "}
+                      {t.title}
                     </div>
                   ))}
                   {refined.topics.length > 12 && (
@@ -200,11 +217,7 @@ export function CourseWizardStep3() {
             )}
 
             <div className="flex gap-2">
-              <Button
-                onClick={handleSave}
-                disabled={saving}
-                className="flex-1"
-              >
+              <Button onClick={handleSave} disabled={saving} className="flex-1">
                 {saving ? (
                   <Loader2 className="w-4 h-4 animate-spin" />
                 ) : (
@@ -228,7 +241,8 @@ export function CourseWizardStep3() {
           <CardContent>
             {!saving && !savedCourseId ? (
               <p className="text-sm text-muted-foreground">
-                Kliknij „Zapisz kurs i tematy", aby utworzyć kurs i {refined.topics.length} tematów.
+                Kliknij „Zapisz kurs i tematy", aby utworzyć kurs i{" "}
+                {refined.topics.length} tematów.
               </p>
             ) : saving ? (
               <div className="space-y-3">
@@ -242,7 +256,8 @@ export function CourseWizardStep3() {
               <Alert>
                 <CheckCircle className="h-4 w-4" />
                 <AlertDescription>
-                  <span className="font-medium">Zapisano pomyślnie!</span><br />
+                  <span className="font-medium">Zapisano pomyślnie!</span>
+                  <br />
                   ID kursu: {String(savedCourseId)}
                 </AlertDescription>
               </Alert>

@@ -7,8 +7,17 @@ import { useStepStore } from "@/utility/formWizard";
 import { SubPage } from "@/components/layout";
 import { Lead } from "@/components/reader";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
-import { Button, Alert, AlertDescription, ScrollArea, Badge } from "@/components/ui";
-import { Loader2, Sparkles, AlertCircle, ChevronRight, BookOpen, Target } from "lucide-react";
+import { Button, Alert, AlertDescription, ScrollArea, Badge, Textarea } from "@/components/ui";
+import {
+  Loader2,
+  Sparkles,
+  AlertCircle,
+  ChevronRight,
+  BookOpen,
+  Target,
+  ChevronDown,
+  ChevronUp,
+} from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { getLatestCurriculumForSubject } from "../course-structure-wizard/curriculum";
@@ -43,21 +52,23 @@ type Generated = {
 
 // Pomocnicze wskazówki dla różnych przedmiotów
 const SUBJECT_HINTS: Record<string, string> = {
-  "Matematyka": "używaj wzorów matematycznych w blokach kodu, pokazuj kroki rozwiązania, dodawaj wykresy ASCII gdzie to możliwe",
-  "Angielski": "dodaj tabele z odmianą czasowników, przykładowe dialogi, różnice British/American English",
-  "Informatyka": "używaj bloków kodu z komentarzami, pokazuj input/output, best practices",
-  "Fizyka": "wyjaśniaj wzory krok po kroku, dodawaj jednostki, pokazuj zastosowania praktyczne",
-  "Chemia": "równania reakcji w blokach kodu, zasady bezpieczeństwa, przykłady z życia",
-  "Biologia": "używaj analogii do życia codziennego, pokazuj zależności w ekosystemach",
-  "Historia": "dodawaj kontekst czasowy, mapy konceptualne wydarzeń, ciekawostki",
-  "Geografia": "opisuj zjawiska z przykładami regionalnymi, wpływ człowieka na środowisko",
-  "Polski": "analizuj teksty krok po kroku, środki stylistyczne z przykładami"
+  Matematyka: "używaj wzorów matematycznych w blokach kodu, pokazuj kroki rozwiązania, dodawaj wykresy ASCII gdzie to możliwe",
+  Angielski: "dodaj tabele z odmianą czasowników, przykładowe dialogi, różnice British/American English",
+  Informatyka: "używaj bloków kodu z komentarzami, pokazuj input/output, best practices",
+  Fizyka: "wyjaśniaj wzory krok po kroku, dodawaj jednostki, pokazuj zastosowania praktyczne",
+  Chemia: "równania reakcji w blokach kodu, zasady bezpieczeństwa, przykłady z życia",
+  Biologia: "używaj analogii do życia codziennego, pokazuj zależności w ekosystemach",
+  Historia: "dodawaj kontekst czasowy, mapy konceptualne wydarzeń, ciekawostki",
+  Geografia: "opisuj zjawiska z przykładami regionalnymi, wpływ człowieka na środowisko",
+  Polski: "analizuj teksty krok po kroku, środki stylistyczne z przykładami",
 };
 
 // Wskazówki dla grup wiekowych
 const AGE_GROUP_HINTS: Record<string, string> = {
-  "podstawowy": "uczniowie 12-16 lat - używaj prostych analogii z życia codziennego, gier, social mediów, unikaj abstrakcji",
-  "rozszerzony": "uczniowie 16-19 lat - mogą zrozumieć abstrakcje, zainteresowani praktycznymi zastosowaniami i karierą"
+  podstawowy:
+    "uczniowie 12-16 lat - używaj prostych analogii z życia codziennego, gier, social mediów, unikaj abstrakcji",
+  rozszerzony:
+    "uczniowie 16-19 lat - mogą zrozumieć abstrakcje, zainteresowani praktycznymi zastosowaniami i karierą",
 };
 
 export function EduMaterialsStep2() {
@@ -83,6 +94,10 @@ export function EduMaterialsStep2() {
   const [item, setItem] = useState<Generated | null>(null);
   const [generating, setGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // 🔽 NOWE: szczegóły błędu + toggle
+  const [errorDetails, setErrorDetails] = useState<any | null>(null);
+  const [showErrorDetails, setShowErrorDetails] = useState<boolean>(false);
 
   useEffect(() => {
     if (!courseId || !topicId) {
@@ -130,6 +145,8 @@ export function EduMaterialsStep2() {
   const handleGenerate = async () => {
     if (!topic || topicIdNum == null) return;
     setError(null);
+    setErrorDetails(null); // reset szczegółów
+    setShowErrorDetails(false);
     setGenerating(true);
     setStepData("em_step2", { isGenerating: true });
 
@@ -159,16 +176,23 @@ KONTEKST:
 ${curriculumBlock}
 
 WYMAGANIA PEDAGOGICZNE:
-1. Język: ${step1.level === 'podstawowy' ? 'prosty, bezpośredni, z analogiami do życia codziennego' : 'precyzyjny z terminologią fachową, ale wciąż przystępny'}
-2. Ton: ${step1.tone === 'friendly' ? 'przyjazny, bezpośredni (używaj "poznamy", "zobaczysz", "odkryjesz")' : 
-         step1.tone === 'formal' ? 'profesjonalny ale przystępny' : 'neutralny, rzeczowy'}
+1. Język: ${step1.level === "podstawowy" ? "prosty, bezpośredni, z analogiami do życia codziennego" : "precyzyjny z terminologią fachową, ale wciąż przystępny"}
+2. Ton: ${
+      step1.tone === "friendly"
+        ? 'przyjazny, bezpośredni (używaj "poznamy", "zobaczysz", "odkryjesz")'
+        : step1.tone === "formal"
+        ? "profesjonalny ale przystępny"
+        : "neutralny, rzeczowy"
+    }
 3. Przedmiot: ${subjectHint}
 
 STRUKTURA MATERIAŁU (zachowaj dokładnie tę kolejność):
 
 # [Tytuł z elementem przyciągającym uwagę - użyj kreatywnego sformułowania]
 
-[Akapit wprowadzający - 2-3 zdania ${step1.tone === 'friendly' ? 'entuzjastyczne' : 'profesjonalne'}, 
+[Akapit wprowadzający - 2-3 zdania ${
+      step1.tone === "friendly" ? "entuzjastyczne" : "profesjonalne"
+    }, 
 wyjaśnij dlaczego ten temat jest ważny/ciekawy/przydatny]
 
 ## 🎯 Cele lekcji
@@ -210,14 +234,20 @@ Po tej lekcji będziesz:
 
 [Wyjaśnienie z kontekstem praktycznym]
 
-${step1.subject === 'Angielski' || step1.subject === 'Matematyka' || step1.subject === 'Chemia' ? `
+${
+  step1.subject === "Angielski" ||
+  step1.subject === "Matematyka" ||
+  step1.subject === "Chemia"
+    ? `
 **Tabela pomocnicza:**
 | [Nagłówek 1] | [Nagłówek 2] | [Nagłówek 3] |
 |--------------|--------------|--------------|
 | [Przykład] | [Przykład] | [Przykład] |
 | [Przykład] | [Przykład] | [Przykład] |
 | [Przykład] | [Przykład] | [Przykład] |
-` : ''}
+`
+    : ""
+}
 
 ### [Podtemat 3 - zastosowania lub podsumowanie]
 
@@ -236,10 +266,9 @@ ${step1.subject === 'Angielski' || step1.subject === 'Matematyka' || step1.subje
 ❌ **Błąd:** [Opis typowego błędu uczniów]
 ✅ **Poprawnie:** [Jak zrobić to dobrze z wyjaśnieniem dlaczego]
 
-❌ **Błąd:** [Drugi typowy błąd]
-✅ **Poprawnie:** [Prawidłowe podejście]
-
-${step1.includeExercises ? `
+${
+  step1.includeExercises
+    ? `
 ## 🏋️ Ćwiczenia do samodzielnej pracy
 
 ### 🟢 Rozgrzewka (poziom podstawowy)
@@ -254,7 +283,9 @@ ${step1.includeExercises ? `
 5. [Zadanie problemowe lub kreatywne wymagające myślenia]
 
 💡 **Wskazówka do zadania 5:** [Podpowiedź nie zdradzająca rozwiązania]
-` : ''}
+`
+    : ""
+}
 
 ## 📝 Podsumowanie
 
@@ -268,10 +299,14 @@ ${step1.includeExercises ? `
 - [Konkretna umiejętność 2]
 - [Konkretna umiejętność 3]
 
-${step1.isMaturaCourse ? `
+${
+  step1.isMaturaCourse
+    ? `
 ### 📊 Na maturze:
 [Wskazówka jak ten temat pojawia się na egzaminie - typy zadań, na co zwrócić uwagę]
-` : ''}
+`
+    : ""
+}
 
 ---
 *💫 Następny krok: Ten temat jest fundamentem dla [wskaż co będzie dalej]. Jeśli go opanujesz, [zachęta do dalszej nauki].*
@@ -300,7 +335,24 @@ Generuj materiał w czystym Markdown. Bądź konkretny, praktyczny i angażując
       };
       setItem(generated);
     } catch (e: any) {
-      setError(e?.message || "Nie udało się wygenerować materiału.");
+      // Lepsza obsługa: komunikat + szczegóły (JSON)
+      const msg =
+        e?.message?.toString()?.includes("503") || e?.details?.toString()?.includes?.("503")
+          ? "Błąd komunikacji z Gemini"
+          : e?.message || "Nie udało się wygenerować materiału.";
+      setError(msg);
+
+      const details =
+        e?.info ??
+        e?.response ??
+        {
+          message: e?.message,
+          status: e?.status || e?.statusCode,
+          details: e?.details,
+          hint: e?.hint,
+          raw: e,
+        };
+      setErrorDetails(details);
     } finally {
       setGenerating(false);
       setStepData("em_step2", { isGenerating: false });
@@ -333,9 +385,7 @@ Generuj materiał w czystym Markdown. Bądź konkretny, praktyczny i angażując
               </div>
               <div className="text-sm">
                 <span className="text-muted-foreground">Temat:</span>{" "}
-                <span className="font-medium">
-                  {topic ? `${topicPosNum}. ${topic.title}` : "-"}
-                </span>
+                <span className="font-medium">{topic ? `${topicPosNum}. ${topic.title}` : "-"}</span>
               </div>
               <div className="flex gap-2 mt-3">
                 <Badge variant="outline">{step1.subject}</Badge>
@@ -348,21 +398,18 @@ Generuj materiał w czystym Markdown. Bądź konkretny, praktyczny i angażując
             <Alert>
               <BookOpen className="h-4 w-4" />
               <AlertDescription className="text-xs">
-                <strong>Styl:</strong> {step1.style === 'notebook' ? 'Notatka z lekcji' : 
-                                       step1.style === 'exam' ? 'Przygotowanie do egzaminu' : 'Zwięzły'}<br />
-                <strong>Ton:</strong> {step1.tone === 'friendly' ? 'Przyjazny' : 
-                                      step1.tone === 'formal' ? 'Formalny' : 'Neutralny'}<br />
-                <strong>Ćwiczenia:</strong> {step1.includeExercises ? 'Tak (3 poziomy trudności)' : 'Nie'}
+                <strong>Styl:</strong>{" "}
+                {step1.style === "notebook" ? "Notatka z lekcji" : step1.style === "exam" ? "Przygotowanie do egzaminu" : "Zwięzły"}
+                <br />
+                <strong>Ton:</strong>{" "}
+                {step1.tone === "friendly" ? "Przyjazny" : step1.tone === "formal" ? "Formalny" : "Neutralny"}
+                <br />
+                <strong>Ćwiczenia:</strong> {step1.includeExercises ? "Tak (3 poziomy trudności)" : "Nie"}
               </AlertDescription>
             </Alert>
 
             <div className="flex flex-col gap-2">
-              <Button 
-                onClick={handleGenerate} 
-                disabled={generating}
-                className="w-full"
-                size="lg"
-              >
+              <Button onClick={handleGenerate} disabled={generating} className="w-full" size="lg">
                 {generating ? (
                   <>
                     <Loader2 className="w-4 h-4 mr-2 animate-spin" />
@@ -376,22 +423,74 @@ Generuj materiał w czystym Markdown. Bądź konkretny, praktyczny i angażując
                 )}
               </Button>
 
-              <Button
-                variant="default"
-                onClick={goToSave}
-                disabled={!item || generating}
-                className="w-full"
-              >
+              <Button variant="default" onClick={goToSave} disabled={!item || generating} className="w-full">
                 Przejdź do zapisu
                 <ChevronRight className="w-4 h-4 ml-1" />
               </Button>
             </div>
 
+            {/* Błąd + szczegóły */}
             {error && (
-              <Alert variant="destructive">
-                <AlertCircle className="h-4 w-4" />
-                <AlertDescription>{error}</AlertDescription>
-              </Alert>
+              <div className="space-y-2">
+                <Alert variant="destructive">
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertDescription>{error}</AlertDescription>
+                </Alert>
+
+                {/* Hint dla 503 */}
+                {(() => {
+                  const status =
+                    errorDetails?.status ||
+                    errorDetails?.statusCode ||
+                    (typeof errorDetails === "object" &&
+                    "error" in (errorDetails as any) &&
+                    (errorDetails as any).error?.includes?.("503")
+                      ? 503
+                      : undefined);
+                  if (status === 503) {
+                    return (
+                      <div className="text-xs text-muted-foreground">
+                        <strong>Wskazówka:</strong> Model jest przeciążony (HTTP 503). Spróbuj ponownie za chwilę lub zmień model/zmniejsz
+                        objętość kontekstu.
+                      </div>
+                    );
+                  }
+                  return null;
+                })()}
+
+                {errorDetails && (
+                  <Card>
+                    <CardHeader className="py-3">
+                      <div className="flex items-center justify-between">
+                        <CardTitle className="text-sm">Szczegóły błędu</CardTitle>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setShowErrorDetails((v) => !v)}
+                          className="h-7"
+                        >
+                          {showErrorDetails ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                        </Button>
+                      </div>
+                    </CardHeader>
+                    {showErrorDetails && (
+                      <CardContent className="pt-0">
+                        <Textarea
+                          className="font-mono text-xs h-40"
+                          readOnly
+                          value={(() => {
+                            try {
+                              return JSON.stringify(errorDetails, null, 2);
+                            } catch {
+                              return String(errorDetails);
+                            }
+                          })()}
+                        />
+                      </CardContent>
+                    )}
+                  </Card>
+                )}
+              </div>
             )}
 
             {generating && (
@@ -403,6 +502,7 @@ Generuj materiał w czystym Markdown. Bądź konkretny, praktyczny i angażując
           </CardContent>
         </Card>
 
+        {/* Podgląd materiału */}
         <Card>
           <CardHeader>
             <CardTitle>Podgląd materiału</CardTitle>
@@ -437,9 +537,7 @@ Generuj materiał w czystym Markdown. Bądź konkretny, praktyczny i angażując
                 </Card>
                 <ScrollArea className="h-[500px] rounded-lg border p-4">
                   <div className="prose prose-sm max-w-none dark:prose-invert">
-                    <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                      {item.content_markdown}
-                    </ReactMarkdown>
+                    <ReactMarkdown remarkPlugins={[remarkGfm]}>{item.content_markdown}</ReactMarkdown>
                   </div>
                 </ScrollArea>
               </>

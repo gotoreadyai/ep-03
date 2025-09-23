@@ -119,7 +119,7 @@ export function CourseWizardStep4() {
     setDeletingId(topicId);
     await new Promise<void>((resolve) => {
       deleteTopic(
-        { resource: "topics", id: topicId }, // <-- BaseKey gwarantowany przez wywołanie tylko gdy id istnieje
+        { resource: "topics", id: topicId },
         {
           onSuccess: () => {
             setDeletingId(null);
@@ -128,6 +128,41 @@ export function CourseWizardStep4() {
           },
           onError: () => {
             setDeletingId(null);
+            resolve();
+          },
+        }
+      );
+    });
+  };
+
+  // --- USUWANIE KURSU (kaskadowo przez FK ON DELETE CASCADE) ---
+  const { mutate: deleteCourse } = useDelete();
+  const [deletingCourse, setDeletingCourse] = useState(false);
+
+  const handleDeleteCourse = async () => {
+    if (!selectedId) return;
+    const course = courses.find((c: any) => Number(c.id) === Number(selectedId));
+    const name = course?.title || `Kurs #${String(selectedId)}`;
+
+    const ok = window.confirm(
+      `Usunąć kurs „${name}”? Wszystkie jego tematy (i dalsze zależne rekordy) zostaną usunięte kaskadowo. Tej operacji nie można cofnąć.`
+    );
+    if (!ok) return;
+
+    setDeletingCourse(true);
+    await new Promise<void>((resolve) => {
+      deleteCourse(
+        { resource: "courses", id: selectedId },
+        {
+          onSuccess: async () => {
+            setDeletingCourse(false);
+            setSelectedId(undefined); // wyczyść wybór
+            await refetchCourses();
+            await refetchTopics();
+            resolve();
+          },
+          onError: () => {
+            setDeletingCourse(false);
             resolve();
           },
         }
@@ -341,11 +376,25 @@ Wypisz listę tematów (tytuł + krótki opis 1–2 zdania) z narastającą trud
                 })()}
               </span>
 
-              {/* Akcje: Uzupełnij braki (krok 5) */}
-              <Button size="sm" variant="outline" onClick={goToFillGaps} disabled={!selectedId || topicsLoading}>
-                <Sparkles className="w-4 h-4 mr-1" />
-                Uzupełnij braki
-              </Button>
+              <div className="flex items-center gap-2">
+                {/* Usuń kurs (kaskadowo) */}
+                <Button
+                  size="sm"
+                  variant="destructive"
+                  onClick={handleDeleteCourse}
+                  disabled={!selectedId || deletingCourse || regenBusy || topicsLoading}
+                  title="Usuń kurs wraz z powiązanymi danymi"
+                >
+                  <Trash2 className="w-4 h-4 mr-1" />
+                  {deletingCourse ? "Usuwanie..." : "Usuń kurs"}
+                </Button>
+
+                {/* Akcja: Uzupełnij braki (krok 5) */}
+                <Button size="sm" variant="outline" onClick={goToFillGaps} disabled={!selectedId || topicsLoading}>
+                  <Sparkles className="w-4 h-4 mr-1" />
+                  Uzupełnij braki
+                </Button>
+              </div>
             </CardTitle>
           </CardHeader>
 
@@ -443,3 +492,4 @@ Wypisz listę tematów (tytuł + krótki opis 1–2 zdania) z narastającą trud
     </div>
   );
 }
+
