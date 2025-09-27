@@ -35,7 +35,7 @@ export async function callLLM(
     },
     body: JSON.stringify({
       message: finalPrompt,
-      model: "gemini-2.5-flash-lite",
+      model: "gemini-2.5-flash",
       responseFormat,
     }),
   });
