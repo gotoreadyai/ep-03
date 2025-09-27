@@ -6,7 +6,7 @@ import { permissionsResources } from "./permissions";
 
 import { courseStructureResource } from "./ai-tools/course-structure-wizard";
 import { educationalMaterialResource } from "./ai-tools/educational-material-wizard"; // ⬅️ DODANE
-// import { quizWizardResource } from "./ai-tools/quiz-wizard";
+import { quizWizardResource } from "./ai-tools/quiz-wizard";
 
 // Parent resource dla narzędzi AI
 const aiToolsParent: IResourceItem = {
@@ -54,13 +54,12 @@ export const adminResources: IResourceItem[] = permissionsResources.includes(ven
         },
       },
 
-      // (opcjonalnie w przyszłości)
-      // {
-      //   ...quizWizardResource,
-      //   list: "/admin/quiz-wizard",
-      //   meta: {
-      //     ...quizWizardResource.meta,
-      //     parent: "ai-tools",
-      //   },
-      // },
+      {
+        ...quizWizardResource,
+        list: "/admin/quiz-wizard",
+        meta: {
+          ...quizWizardResource.meta,
+          parent: "ai-tools",
+        },
+      },
     ];

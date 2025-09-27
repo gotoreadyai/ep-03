@@ -1,5 +1,6 @@
 // src/pages/admin/index.tsx
 import { lazy, Suspense } from "react";
+import type { ReactElement } from "react";
 import { Route, Routes, Outlet, Navigate } from "react-router-dom";
 import { Authenticated, useGetIdentity } from "@refinedev/core";
 import { CatchAllNavigate } from "@refinedev/react-router";
@@ -13,6 +14,7 @@ import { vendorsRoutes } from "./vendors";
 import { courseStructureRoutes } from "./ai-tools/course-structure-wizard";
 import { aiToolsRoutes } from "./ai-tools";
 import { educationalMaterialRoutes } from "./ai-tools/educational-material-wizard";
+import { quizWizardRoutes } from "./ai-tools/quiz-wizard";
 
 const allAdminRoutes = [
   ...dashboardRoutes,
@@ -21,7 +23,7 @@ const allAdminRoutes = [
   ...aiToolsRoutes,
   ...courseStructureRoutes,
   ...educationalMaterialRoutes,
-  // ...quizWizardRoutes,
+  ...quizWizardRoutes,
 
 ];
 
@@ -67,7 +69,7 @@ const AdminAccessGuard = ({ children }: { children: React.ReactNode }) => {
   return <>{children}</>;
 };
 
-export const AdminModule = (
+export const AdminModule: ReactElement = (
   <Route
     path="/admin/*"
     element={
