@@ -38,6 +38,8 @@ import { callLLM } from "@/utility/llmService";
 import { toast } from "sonner";
 import YAML from "yaml";
 import { MaterialContentRenderer } from "@/pages/teacher/activities/components/MaterialContentRenderer";
+import { CourseSelector } from "../CourseSelector";
+
 
 // Typy
 type Activity = {
@@ -130,14 +132,6 @@ export function EduMaterialsStep4() {
     sectionId: null,
     sectionTitle: null,
     sectionContent: null
-  });
-
-  // Pobierz kursy z materiałami
-  const { data: coursesData } = useList({
-    resource: "courses",
-    filters: [{ field: "is_published", operator: "eq", value: true }],
-    sorters: [{ field: "created_at", order: "desc" }],
-    pagination: { pageSize: 100 },
   });
 
   // Pobierz tematy dla wybranego kursu
@@ -359,25 +353,16 @@ answerIndex: ${quizModal.quiz.answerIndex}
             <CardTitle className="text-base">Wybór materiałów</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div>
-              <label className="text-xs font-medium mb-1 block">Kurs</label>
-              <select
-                value={selectedCourseId || ""}
-                onChange={(e) => {
-                  setSelectedCourseId(e.target.value ? Number(e.target.value) : null);
-                  setSelectedTopicId(null);
-                  setExpandedActivity(null);
-                }}
-                className="w-full rounded-md border px-3 py-2 text-sm"
-              >
-                <option value="">Wybierz kurs</option>
-                {(coursesData?.data || []).map((course: any) => (
-                  <option key={course.id} value={course.id}>
-                    {course.title}
-                  </option>
-                ))}
-              </select>
-            </div>
+            <CourseSelector
+              value={selectedCourseId}
+              onChange={(courseId) => {
+                setSelectedCourseId(courseId);
+                setSelectedTopicId(null);
+                setExpandedActivity(null);
+              }}
+              label="Kurs"
+              showAlert={false}
+            />
 
             {selectedCourseId && (
               <div>

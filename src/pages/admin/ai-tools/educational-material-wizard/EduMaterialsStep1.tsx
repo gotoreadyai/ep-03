@@ -15,13 +15,13 @@ import {
   Checkbox,
   Alert,
   AlertDescription,
-  ScrollArea,
   Badge,
 } from "@/components/ui";
 import { useStepStore } from "@/utility/formWizard";
 import { getLatestCurriculumForSubject, SUBJECTS } from "../course-structure-wizard/curriculum";
-import { Info, ChevronRight, Search, Eye, EyeOff, FileText } from "lucide-react";
+import { Info, ChevronRight, Search, EyeOff, FileText } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { CourseSelector } from "@/components/course/CourseSelector";
 
 type StepData = {
   courseId?: number;
@@ -57,8 +57,6 @@ export function EduMaterialsStep1() {
   const navigate = useNavigate();
   const data = (getStepData("em_step1") || {}) as StepData;
 
-  const [showOnlyPublished, setShowOnlyPublished] = useState(false);
-
   useEffect(() => {
     registerStep("em_step1", SCHEMA);
     if (!data.subject) {
@@ -79,7 +77,6 @@ export function EduMaterialsStep1() {
   // Kursy (już zawierają subject/level/is_exam_course — bez dodatkowego requestu)
   const { data: coursesData } = useList({
     resource: "courses",
-    filters: showOnlyPublished ? [{ field: "is_published", operator: "eq", value: true }] : [],
     sorters: [{ field: "created_at", order: "desc" }],
     pagination: { pageSize: 100 },
   });
@@ -168,10 +165,6 @@ export function EduMaterialsStep1() {
 
   const canContinue = !!data.courseId && !!data.topicId;
 
-  const selectedCourseForBadge = useMemo(() => {
-    return coursesData?.data?.find((c: any) => c.id === data.courseId);
-  }, [coursesData?.data, data.courseId]);
-
   return (
     <SubPage>
       <Lead title="Krok 1" description="Wybór kursu, tematu i parametrów" />
@@ -183,48 +176,11 @@ export function EduMaterialsStep1() {
             <CardTitle>Kurs i temat</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="flex items-center gap-2 p-2 bg-muted rounded-lg">
-              <Checkbox checked={showOnlyPublished} onCheckedChange={(checked) => setShowOnlyPublished(!!checked)} />
-              <label className="text-sm cursor-pointer">Pokazuj tylko opublikowane kursy</label>
-            </div>
-
-            <Select value={data.courseId ? String(data.courseId) : ""} onValueChange={(v) => setStepData("em_step1", { courseId: Number(v) })}>
-              <SelectTrigger>
-                <SelectValue placeholder="Wybierz kurs" />
-              </SelectTrigger>
-              <SelectContent>
-                {(coursesData?.data || []).length === 0 ? (
-                  <div className="p-3 text-xs text-muted-foreground">
-                    {showOnlyPublished ? "Brak opublikowanych kursów. Odznacz filtr." : "Brak kursów. Najpierw wygeneruj kurs."}
-                  </div>
-                ) : (
-                  (coursesData?.data || []).map((c: any) => (
-                    <SelectItem key={c.id} value={String(c.id)}>
-                      <div className="flex items-center gap-2">
-                        {c.icon_emoji ? `${c.icon_emoji} ` : "📚 "}
-                        <span>{c.title}</span>
-                        {!c.is_published && (
-                          <Badge variant="outline" className="ml-2 text-xs">
-                            <EyeOff className="w-3 h-3 mr-1" />
-                            Szkic
-                          </Badge>
-                        )}
-                      </div>
-                    </SelectItem>
-                  ))
-                )}
-              </SelectContent>
-            </Select>
-
-            {selectedCourseForBadge && !selectedCourseForBadge.is_published && (
-              <Alert>
-                <Info className="h-4 w-4" />
-                <AlertDescription className="text-xs">
-                  Wybrany kurs jest szkicem (nieopublikowany). Materiały zostaną utworzone, ale nie będą widoczne dla uczniów dopóki nie
-                  opublikujesz kursu.
-                </AlertDescription>
-              </Alert>
-            )}
+            <CourseSelector
+              value={data.courseId || null}
+              onChange={(courseId) => setStepData("em_step1", { courseId: courseId || undefined })}
+              showAlert={true}
+            />
 
             {data.courseId && (
               <div className="rounded-lg border">
