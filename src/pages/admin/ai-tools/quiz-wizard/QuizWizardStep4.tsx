@@ -132,12 +132,7 @@ export function QuizWizardStep4() {
               )}
             </div>
 
-            <Button asChild className="w-full" variant="outline">
-              <Link to={`/admin/activities/${summaryData.activityId}`}>
-                <ExternalLink className="w-4 h-4 mr-2" />
-                Otwórz quiz w edytorze
-              </Link>
-            </Button>
+         
           </CardContent>
         </Card>
 
@@ -217,44 +212,7 @@ export function QuizWizardStep4() {
         </Card>
       </div>
 
-      {/* Dodatkowe informacje */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Następne kroki</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          <div className="grid gap-3 md:grid-cols-3">
-            <div className="rounded-lg border p-4">
-              <div className="font-medium text-sm mb-1">1. Sprawdź pytania</div>
-              <p className="text-xs text-muted-foreground">
-                Otwórz quiz w edytorze i zweryfikuj poprawność wszystkich pytań i odpowiedzi
-              </p>
-            </div>
-
-            <div className="rounded-lg border p-4">
-              <div className="font-medium text-sm mb-1">2. Przypisz do grup</div>
-              <p className="text-xs text-muted-foreground">
-                Zdecyduj, które grupy uczniów będą miały dostęp do tego quizu
-              </p>
-            </div>
-
-            <div className="rounded-lg border p-4">
-              <div className="font-medium text-sm mb-1">3. Opublikuj</div>
-              <p className="text-xs text-muted-foreground">
-                {summaryData.isPublished 
-                  ? "Quiz jest już opublikowany i widoczny dla uczniów" 
-                  : "Zmień status na 'Opublikowany' gdy quiz będzie gotowy"}
-              </p>
-            </div>
-          </div>
-
-          <Alert className="mt-4">
-            <AlertDescription className="text-xs">
-              <strong>Wskazówka:</strong> Możesz w każdej chwili edytować pytania, zmienić parametry lub dodać nowe pytania do quizu w edytorze aktywności.
-            </AlertDescription>
-          </Alert>
-        </CardContent>
-      </Card>
+     
     </SubPage>
   );
 }
