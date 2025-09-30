@@ -326,7 +326,7 @@ Szkic ma być zwięzły, klarowny i praktyczny dla planowania lekcji. Zadbaj, by
                         alignToCurriculum: Boolean(checked),
                       })
                     }
-                    disabled={data.isGenerating || !data.isMaturaCourse}
+                    disabled={data.isGenerating}
                   />
                   <span className="text-sm">
                     Uwzględnij <strong>najnowszą (2025)</strong> podstawę
