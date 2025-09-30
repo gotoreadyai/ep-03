@@ -176,20 +176,20 @@ export function EduMaterialsStep1() {
     <SubPage>
       <Lead title="Krok 1" description="Wybór kursu, tematu i parametrów" />
 
-      <div className="grid gap-6 lg:grid-cols-[1.2fr,0.8fr] h-[calc(100vh-16rem)]">
+      <div className="grid gap-6 lg:grid-cols-[1.2fr,0.8fr]">
         {/* Lewa kolumna */}
-        <Card className="flex flex-col h-full overflow-hidden">
-          <CardHeader className="flex-shrink-0">
+        <Card>
+          <CardHeader>
             <CardTitle>Kurs i temat</CardTitle>
           </CardHeader>
-          <CardContent className="flex-1 flex flex-col gap-4 overflow-hidden">
-            <div className="flex items-center gap-2 p-2 bg-muted rounded-lg flex-shrink-0">
+          <CardContent className="space-y-4">
+            <div className="flex items-center gap-2 p-2 bg-muted rounded-lg">
               <Checkbox checked={showOnlyPublished} onCheckedChange={(checked) => setShowOnlyPublished(!!checked)} />
               <label className="text-sm cursor-pointer">Pokazuj tylko opublikowane kursy</label>
             </div>
 
             <Select value={data.courseId ? String(data.courseId) : ""} onValueChange={(v) => setStepData("em_step1", { courseId: Number(v) })}>
-              <SelectTrigger className="flex-shrink-0">
+              <SelectTrigger>
                 <SelectValue placeholder="Wybierz kurs" />
               </SelectTrigger>
               <SelectContent>
@@ -217,7 +217,7 @@ export function EduMaterialsStep1() {
             </Select>
 
             {selectedCourseForBadge && !selectedCourseForBadge.is_published && (
-              <Alert className="flex-shrink-0">
+              <Alert>
                 <Info className="h-4 w-4" />
                 <AlertDescription className="text-xs">
                   Wybrany kurs jest szkicem (nieopublikowany). Materiały zostaną utworzone, ale nie będą widoczne dla uczniów dopóki nie
@@ -227,204 +227,202 @@ export function EduMaterialsStep1() {
             )}
 
             {data.courseId && (
-              <div className="rounded-lg border flex-1 overflow-hidden flex flex-col">
-                <div className="flex items-center gap-2 p-2 border-b bg-muted/40 flex-shrink-0">
+              <div className="rounded-lg border">
+                <div className="flex items-center gap-2 p-2 border-b bg-muted/40">
                   <Search className="w-4 h-4 text-muted-foreground" />
                   <Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Filtruj tematy…" className="h-8" />
                 </div>
 
-                <ScrollArea className="flex-1 h-full">
-                  <div className="divide-y">
-                    {topicsLoading && <div className="p-3 text-xs text-muted-foreground">Ładowanie tematów…</div>}
-                    {!topicsLoading && filteredTopics.length === 0 && (
-                      <div className="p-3 text-xs text-muted-foreground">{query ? "Brak wyników dla filtru." : "Ten kurs nie ma jeszcze tematów."}</div>
-                    )}
-                    {filteredTopics.map((t: any) => {
-                      const materials = materialsByTopic[t.id];
-                      const selected = data.topicId === t.id;
+                <div className="divide-y">
+                  {topicsLoading && <div className="p-3 text-xs text-muted-foreground">Ładowanie tematów…</div>}
+                  {!topicsLoading && filteredTopics.length === 0 && (
+                    <div className="p-3 text-xs text-muted-foreground">{query ? "Brak wyników dla filtru." : "Ten kurs nie ma jeszcze tematów."}</div>
+                  )}
+                  {filteredTopics.map((t: any) => {
+                    const materials = materialsByTopic[t.id];
+                    const selected = data.topicId === t.id;
 
-                      return (
-                        <button
-                          key={t.id}
-                          type="button"
-                          onClick={() => setStepData("em_step1", { topicId: t.id })}
-                          className={["w-full text-left p-3 hover:bg-muted/50 transition", selected ? "bg-blue-50/60 ring-1 ring-blue-200" : ""].join(" ")}
-                        >
-                          <div className="flex items-start justify-between gap-3">
-                            <div className="min-w-0 flex-1">
-                              <div className="text-sm font-medium flex items-center gap-2">
-                                <span className="shrink-0 inline-flex items-center justify-center w-5 h-5 rounded-full bg-primary/10 text-xs font-semibold">
-                                  {t.position}
-                                </span>
-                                <span className="truncate">{t.title}</span>
-                                {!t.is_published && (
-                                  <Badge variant="outline" className="text-xs shrink-0">
-                                    <EyeOff className="w-3 h-3" />
-                                  </Badge>
-                                )}
-                              </div>
-
-                              <div className="mt-2 ml-7">
-                                {materials?.count > 0 ? (
-                                  <>
-                                    <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-1">
-                                      <FileText className="w-3 h-3" />
-                                      <span>Materiały:</span>
-                                      <Badge variant="secondary" className="text-xs h-4 px-1">
-                                        {materials.count}
-                                      </Badge>
-                                    </div>
-                                    <ul className="space-y-0.5 ml-4">
-                                      {materials.titles.map((title, idx) => (
-                                        <li key={idx} className="text-[11px] text-muted-foreground/80 truncate">
-                                          <span className="text-primary/40 mr-1">•</span>
-                                          {title}
-                                        </li>
-                                      ))}
-                                      {materials.count > materials.titles.length && (
-                                        <li className="text-[11px] text-muted-foreground/60 italic">
-                                          <span className="text-primary/30 mr-1">•</span>
-                                          i {materials.count - materials.titles.length} więcej...
-                                        </li>
-                                      )}
-                                    </ul>
-                                  </>
-                                ) : (
-                                  <div className="text-xs text-muted-foreground/50 italic">Brak materiałów</div>
-                                )}
-                              </div>
+                    return (
+                      <button
+                        key={t.id}
+                        type="button"
+                        onClick={() => setStepData("em_step1", { topicId: t.id })}
+                        className={["w-full text-left p-3 hover:bg-muted/50 transition", selected ? "bg-blue-50/60 ring-1 ring-blue-200" : ""].join(" ")}
+                      >
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="min-w-0 flex-1">
+                            <div className="text-sm font-medium flex items-center gap-2">
+                              <span className="shrink-0 inline-flex items-center justify-center w-5 h-5 rounded-full bg-primary/10 text-xs font-semibold">
+                                {t.position}
+                              </span>
+                              <span className="truncate">{t.title}</span>
+                              {!t.is_published && (
+                                <Badge variant="outline" className="text-xs shrink-0">
+                                  <EyeOff className="w-3 h-3" />
+                                </Badge>
+                              )}
                             </div>
 
-                            <div
-                              className={["shrink-0 w-3 h-3 rounded-full border mt-1", selected ? "bg-blue-500 border-blue-500" : "bg-white"].join(" ")}
-                              aria-hidden
-                            />
+                            <div className="mt-2 ml-7">
+                              {materials?.count > 0 ? (
+                                <>
+                                  <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-1">
+                                    <FileText className="w-3 h-3" />
+                                    <span>Materiały:</span>
+                                    <Badge variant="secondary" className="text-xs h-4 px-1">
+                                      {materials.count}
+                                    </Badge>
+                                  </div>
+                                  <ul className="space-y-0.5 ml-4">
+                                    {materials.titles.map((title, idx) => (
+                                      <li key={idx} className="text-[11px] text-muted-foreground/80 truncate">
+                                        <span className="text-primary/40 mr-1">•</span>
+                                        {title}
+                                      </li>
+                                    ))}
+                                    {materials.count > materials.titles.length && (
+                                      <li className="text-[11px] text-muted-foreground/60 italic">
+                                        <span className="text-primary/30 mr-1">•</span>
+                                        i {materials.count - materials.titles.length} więcej...
+                                      </li>
+                                    )}
+                                  </ul>
+                                </>
+                              ) : (
+                                <div className="text-xs text-muted-foreground/50 italic">Brak materiałów</div>
+                              )}
+                            </div>
                           </div>
-                        </button>
-                      );
-                    })}
-                  </div>
-                </ScrollArea>
 
-                <div className="p-2 border-t text-[11px] text-muted-foreground flex-shrink-0">Kliknij temat aby go wybrać. Liczba przy temacie pokazuje istniejące materiały.</div>
+                          <div
+                            className={["shrink-0 w-3 h-3 rounded-full border mt-1", selected ? "bg-blue-500 border-blue-500" : "bg-white"].join(" ")}
+                            aria-hidden
+                          />
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+
+                <div className="p-2 border-t text-[11px] text-muted-foreground">
+                  Kliknij temat aby go wybrać. Liczba przy temacie pokazuje istniejące materiały.
+                </div>
               </div>
             )}
           </CardContent>
         </Card>
 
         {/* Prawa kolumna */}
-        <Card className="flex flex-col h-full overflow-hidden">
-          <CardHeader className="flex-shrink-0">
+        <Card>
+          <CardHeader>
             <CardTitle>Parametry generowania</CardTitle>
           </CardHeader>
-          <CardContent className="flex-1 overflow-y-auto">
-            <div className="space-y-4">
-              <Select value={data.subject || "Matematyka"} onValueChange={(v) => setStepData("em_step1", { subject: v })}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Przedmiot" />
-                </SelectTrigger>
-                <SelectContent>
-                  {SUBJECTS.map((s) => (
-                    <SelectItem key={s} value={s}>
-                      {s}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+          <CardContent className="space-y-4">
+            <Select value={data.subject || "Matematyka"} onValueChange={(v) => setStepData("em_step1", { subject: v })}>
+              <SelectTrigger>
+                <SelectValue placeholder="Przedmiot" />
+              </SelectTrigger>
+              <SelectContent>
+                {SUBJECTS.map((s) => (
+                  <SelectItem key={s} value={s}>
+                    {s}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
 
-              <Select value={data.level || "podstawowy"} onValueChange={(v) => setStepData("em_step1", { level: v })}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Poziom" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="podstawowy">Podstawowy</SelectItem>
-                  <SelectItem value="rozszerzony">Rozszerzony</SelectItem>
-                </SelectContent>
-              </Select>
+            <Select value={data.level || "podstawowy"} onValueChange={(v) => setStepData("em_step1", { level: v })}>
+              <SelectTrigger>
+                <SelectValue placeholder="Poziom" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="podstawowy">Podstawowy</SelectItem>
+                <SelectItem value="rozszerzony">Rozszerzony</SelectItem>
+              </SelectContent>
+            </Select>
 
-              <div className="flex items-center gap-2">
-                <Checkbox
-                  checked={data.isMaturaCourse || false}
-                  onCheckedChange={(v) =>
-                    setStepData("em_step1", {
-                      isMaturaCourse: Boolean(v),
-                      alignToCurriculum: v ? data.alignToCurriculum : false,
-                    })
-                  }
-                />
-                <span className="text-sm">Kurs maturalny</span>
-              </div>
-
-              <div className="flex items-center gap-2">
-                <Checkbox
-                  checked={data.alignToCurriculum || false}
-                  onCheckedChange={(v) => setStepData("em_step1", { alignToCurriculum: Boolean(v) })}
-                  disabled={!data.isMaturaCourse}
-                />
-                <span className="text-sm">Uwzględnij najnowszą (2025) podstawę LO (PL)</span>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <div className="text-xs mb-1">Styl</div>
-                  <Select value={data.style || "notebook"} onValueChange={(v) => setStepData("em_step1", { style: v as StepData["style"] })}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Wybierz styl" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="notebook">Notatka z lekcji</SelectItem>
-                      <SelectItem value="exam">Pod egzamin</SelectItem>
-                      <SelectItem value="concise">Zwięzły</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div>
-                  <div className="text-xs mb-1">Ton</div>
-                  <Select value={data.tone || "friendly"} onValueChange={(v) => setStepData("em_step1", { tone: v as StepData["tone"] })}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Ton" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="friendly">Przystępny</SelectItem>
-                      <SelectItem value="neutral">Neutralny</SelectItem>
-                      <SelectItem value="formal">Formalny</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-
-              <div>
-                <div className="text-xs mb-1">Domyślny czas (min)</div>
-                <Input
-                  type="number"
-                  min={5}
-                  value={data.defaultDuration ?? 20}
-                  onChange={(e) => setStepData("em_step1", { defaultDuration: Number(e.target.value) })}
-                />
-              </div>
-
-              <div className="flex items-center gap-2">
-                <Checkbox checked={data.includeExercises ?? true} onCheckedChange={(v) => setStepData("em_step1", { includeExercises: Boolean(v) })} />
-                <span className="text-sm">Dodaj mini-ćwiczenia na końcu</span>
-              </div>
-
-              {data.isMaturaCourse && data.alignToCurriculum && latestCurriculum && (
-                <Alert>
-                  <Info className="h-4 w-4" />
-                  <AlertDescription className="text-xs">
-                    Dokument: <strong>{latestCurriculum.label}</strong>
-                    {latestCurriculum.year ? ` • ${latestCurriculum.year}` : ""}
-                  </AlertDescription>
-                </Alert>
-              )}
-
-              <Button disabled={!canContinue} className="w-full" onClick={() => navigate("/admin/educational-material/step2")}>
-                Kontynuuj
-                <ChevronRight className="w-4 h-4 ml-1" />
-              </Button>
-
-              {!canContinue && <p className="text-xs text-muted-foreground text-center">Wybierz kurs i temat aby kontynuować</p>}
+            <div className="flex items-center gap-2">
+              <Checkbox
+                checked={data.isMaturaCourse || false}
+                onCheckedChange={(v) =>
+                  setStepData("em_step1", {
+                    isMaturaCourse: Boolean(v),
+                    alignToCurriculum: v ? data.alignToCurriculum : false,
+                  })
+                }
+              />
+              <span className="text-sm">Kurs maturalny</span>
             </div>
+
+            <div className="flex items-center gap-2">
+              <Checkbox
+                checked={data.alignToCurriculum || false}
+                onCheckedChange={(v) => setStepData("em_step1", { alignToCurriculum: Boolean(v) })}
+                disabled={!data.isMaturaCourse}
+              />
+              <span className="text-sm">Uwzględnij najnowszą (2025) podstawę LO (PL)</span>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <div className="text-xs mb-1">Styl</div>
+                <Select value={data.style || "notebook"} onValueChange={(v) => setStepData("em_step1", { style: v as StepData["style"] })}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Wybierz styl" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="notebook">Notatka z lekcji</SelectItem>
+                    <SelectItem value="exam">Pod egzamin</SelectItem>
+                    <SelectItem value="concise">Zwięzły</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <div className="text-xs mb-1">Ton</div>
+                <Select value={data.tone || "friendly"} onValueChange={(v) => setStepData("em_step1", { tone: v as StepData["tone"] })}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Ton" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="friendly">Przystępny</SelectItem>
+                    <SelectItem value="neutral">Neutralny</SelectItem>
+                    <SelectItem value="formal">Formalny</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <div>
+              <div className="text-xs mb-1">Domyślny czas (min)</div>
+              <Input
+                type="number"
+                min={5}
+                value={data.defaultDuration ?? 20}
+                onChange={(e) => setStepData("em_step1", { defaultDuration: Number(e.target.value) })}
+              />
+            </div>
+
+            <div className="flex items-center gap-2">
+              <Checkbox checked={data.includeExercises ?? true} onCheckedChange={(v) => setStepData("em_step1", { includeExercises: Boolean(v) })} />
+              <span className="text-sm">Dodaj mini-ćwiczenia na końcu</span>
+            </div>
+
+            {data.isMaturaCourse && data.alignToCurriculum && latestCurriculum && (
+              <Alert>
+                <Info className="h-4 w-4" />
+                <AlertDescription className="text-xs">
+                  Dokument: <strong>{latestCurriculum.label}</strong>
+                  {latestCurriculum.year ? ` • ${latestCurriculum.year}` : ""}
+                </AlertDescription>
+              </Alert>
+            )}
+
+            <Button disabled={!canContinue} className="w-full" onClick={() => navigate("/admin/educational-material/step2")}>
+              Kontynuuj
+              <ChevronRight className="w-4 h-4 ml-1" />
+            </Button>
+
+            {!canContinue && <p className="text-xs text-muted-foreground text-center">Wybierz kurs i temat aby kontynuować</p>}
           </CardContent>
         </Card>
       </div>
