@@ -1,6 +1,5 @@
 // src/pages/admin/ai-tools/educational-material-wizard/EduMaterialsStep4.tsx
-// Ten komponent pozwala przeglądać wygenerowane materiały i dodawać do nich pytania kontrolne
-import { useEffect, useState, useMemo } from "react";
+import { useState } from "react";
 import { useList, useUpdate } from "@refinedev/core";
 import { useNavigate } from "react-router-dom";
 import { SubPage } from "@/components/layout";
@@ -9,8 +8,7 @@ import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { 
   Button, 
   Alert, 
-  AlertDescription, 
-  ScrollArea,
+  AlertDescription,
   Badge,
   Tabs,
   TabsContent,
@@ -21,26 +19,25 @@ import {
   DialogDescription,
   DialogHeader,
   DialogTitle,
+  ScrollArea,
 } from "@/components/ui";
 import { 
   HelpCircle, 
   Plus, 
   Loader2, 
-  CheckCircle, 
-  AlertCircle,
+  CheckCircle,
   Eye,
-  Sparkles,
   FileText,
   RefreshCw,
   Save,
-  X,
-  ChevronRight
+  ChevronRight,
 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { callLLM } from "@/utility/llmService";
 import { toast } from "sonner";
 import YAML from "yaml";
+import { MaterialContentRenderer } from "@/pages/teacher/activities/components/MaterialContentRenderer";
 
 // Typy
 type Activity = {
@@ -52,6 +49,8 @@ type Activity = {
   is_published: boolean;
   position: number;
   duration_min?: number;
+  created_at: string;
+  updated_at?: string;
   topics?: {
     title: string;
     position: number;
@@ -106,6 +105,17 @@ export function EduMaterialsStep4() {
     sectionId: null 
   });
   const [savingActivity, setSavingActivity] = useState<number | null>(null);
+  
+  // Modal podglądu materiału
+  const [previewModal, setPreviewModal] = useState<{
+    open: boolean;
+    activity: Activity | null;
+  }>({
+    open: false,
+    activity: null
+  });
+  
+  // Modal quizu
   const [quizModal, setQuizModal] = useState<{
     open: boolean;
     quiz: Quiz | null;
@@ -265,17 +275,14 @@ Wygeneruj jedno pytanie kontrolne w formacie JSON.
     setSavingActivity(quizModal.activityId);
     
     try {
-      // Pobierz aktualną treść
       const activity = activitiesData?.data?.find(a => a.id === quizModal.activityId);
       if (!activity) throw new Error("Nie znaleziono aktywności");
       
-      // Znajdź sekcję i dodaj quiz
       const sections = parseContentSections(activity.content);
       const sectionIndex = sections.findIndex(s => s.id === quizModal.sectionId);
       
       if (sectionIndex === -1) throw new Error("Nie znaleziono sekcji");
       
-      // Przygotuj YAML z quizem
       const quizYaml = `\`\`\`quiz
 question: "${quizModal.quiz.question}"
 options:
@@ -283,21 +290,16 @@ ${quizModal.quiz.options.map(opt => `  - "${opt}"`).join('\n')}
 answerIndex: ${quizModal.quiz.answerIndex}
 \`\`\``;
       
-      // Odbuduj content z nowym quizem
       let newContent = activity.content;
       const sectionParts = newContent.split(/\n(?=##\s+)/g);
       
-      // Dodaj quiz na końcu odpowiedniej sekcji
       if (sectionParts[sectionIndex]) {
-        // Usuń stary quiz jeśli istnieje
         sectionParts[sectionIndex] = sectionParts[sectionIndex].replace(/```quiz[\s\S]*?```/g, '');
-        // Dodaj nowy quiz na końcu sekcji
         sectionParts[sectionIndex] = sectionParts[sectionIndex].trim() + '\n\n' + quizYaml;
       }
       
       newContent = sectionParts.join('\n');
       
-      // Zapisz do bazy
       await new Promise<void>((resolve, reject) => {
         updateActivity(
           {
@@ -335,6 +337,14 @@ answerIndex: ${quizModal.quiz.answerIndex}
     }
   };
 
+  // Otwórz modal podglądu
+  const handlePreview = (activity: Activity) => {
+    setPreviewModal({
+      open: true,
+      activity
+    });
+  };
+
   return (
     <SubPage>
       <Lead 
@@ -349,7 +359,6 @@ answerIndex: ${quizModal.quiz.answerIndex}
             <CardTitle className="text-base">Wybór materiałów</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            {/* Select kursu */}
             <div>
               <label className="text-xs font-medium mb-1 block">Kurs</label>
               <select
@@ -370,7 +379,6 @@ answerIndex: ${quizModal.quiz.answerIndex}
               </select>
             </div>
 
-            {/* Select tematu */}
             {selectedCourseId && (
               <div>
                 <label className="text-xs font-medium mb-1 block">Temat</label>
@@ -392,7 +400,6 @@ answerIndex: ${quizModal.quiz.answerIndex}
               </div>
             )}
 
-            {/* Info o materiałach */}
             {selectedTopicId && activitiesData?.data && (
               <Alert>
                 <FileText className="h-4 w-4" />
@@ -560,6 +567,15 @@ answerIndex: ${quizModal.quiz.answerIndex}
                             </TabsContent>
                             
                             <TabsContent value="preview" className="p-4">
+                              <Button
+                                variant="outline"
+                                className="w-full mb-4"
+                                onClick={() => handlePreview(activity)}
+                              >
+                                <Eye className="w-4 h-4 mr-2" />
+                                Otwórz podgląd w pełnym oknie
+                              </Button>
+                              
                               <ScrollArea className="h-[400px] rounded-lg border p-4">
                                 <div className="prose prose-sm max-w-none dark:prose-invert">
                                   <ReactMarkdown remarkPlugins={[remarkGfm]}>
@@ -580,7 +596,37 @@ answerIndex: ${quizModal.quiz.answerIndex}
         </Card>
       </div>
 
-      {/* Modal z podglądem wygenerowanego pytania */}
+      {/* Modal podglądu materiału */}
+      <Dialog open={previewModal.open} onOpenChange={(open) => {
+        if (!open) {
+          setPreviewModal({ open: false, activity: null });
+        }
+      }}>
+        <DialogContent className="max-w-4xl max-h-[90vh]">
+          <DialogHeader>
+            <DialogTitle>{previewModal.activity?.title}</DialogTitle>
+            <DialogDescription>
+              {previewModal.activity?.topics?.courses?.title} → {previewModal.activity?.topics?.title}
+            </DialogDescription>
+          </DialogHeader>
+          
+          {previewModal.activity && (
+            <MaterialContentRenderer
+              content={previewModal.activity.content}
+              metadata={{
+                duration_min: previewModal.activity.duration_min,
+                position: previewModal.activity.position,
+                created_at: previewModal.activity.created_at,
+                updated_at: previewModal.activity.updated_at
+              }}
+              showMetadata={true}
+              height="500px"
+            />
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal z quizem */}
       <Dialog open={quizModal.open} onOpenChange={(open) => {
         if (!open && !savingActivity) {
           setQuizModal({
@@ -603,7 +649,6 @@ answerIndex: ${quizModal.quiz.answerIndex}
           
           {quizModal.quiz && (
             <div className="space-y-4">
-              {/* Podgląd pytania */}
               <div className="rounded-lg border p-4 bg-muted/50">
                 <p className="font-medium mb-3">{quizModal.quiz.question}</p>
                 <div className="space-y-2">
@@ -631,7 +676,6 @@ answerIndex: ${quizModal.quiz.answerIndex}
                 </div>
               </div>
 
-              {/* Kod YAML */}
               <div>
                 <p className="text-sm font-medium mb-2">Kod YAML (do wstawienia):</p>
                 <div className="rounded-lg border bg-background p-3 font-mono text-xs overflow-x-auto">
@@ -644,7 +688,6 @@ answerIndex: ${quizModal.quiz.answerIndex}
                 </div>
               </div>
 
-              {/* Akcje */}
               <div className="flex justify-end gap-2">
                 <Button
                   variant="outline"
