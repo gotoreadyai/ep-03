@@ -6,7 +6,7 @@ import { SubPage } from "@/components/layout";
 import { Lead } from "@/components/reader";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button, Input, Switch, Alert, AlertDescription, ScrollArea, Badge } from "@/components/ui";
-import { Save, AlertCircle, CheckCircle, ArrowLeft, Trash2 } from "lucide-react";
+import { Save, AlertCircle, CheckCircle, ArrowLeft, Trash2, Loader2 } from "lucide-react";
 
 type QuizItem = {
   question: string;
@@ -52,7 +52,6 @@ export function QuizWizardStep3() {
   const [items, setItems] = useState<QuizItem[]>(initialItem?.items ?? []);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [savedActivityId, setSavedActivityId] = useState<number | null>(null);
   const [progress, setProgress] = useState<string>("");
 
   // Ostatnia pozycja w temacie
@@ -166,14 +165,14 @@ export function QuizWizardStep3() {
         );
       });
 
-      setSavedActivityId(activityId);
-
       // KROK 2: Zapisz każde pytanie do tabeli questions
       setProgress(`Zapisywanie pytań (0/${items.length})...`);
       
       for (let i = 0; i < items.length; i++) {
         const item = items[i];
-        setProgress(`Zapisywanie pytań (${i + 1}/${items.length})...`);
+        const questionNumber = i + 1;
+        const questionPreview = item.question.substring(0, 40) + (item.question.length > 40 ? '...' : '');
+        setProgress(`Zapisywanie pytania ${questionNumber}/${items.length}: "${questionPreview}"`);
 
         // Konwersja opcji do formatu JSONB zgodnego z bazą
         const optionsJsonb = item.options.map((text, idx) => ({
@@ -191,19 +190,44 @@ export function QuizWizardStep3() {
                 question: item.question.trim(),
                 options: optionsJsonb, // ✅ Format JSONB zgodny z bazą
                 points: item.points ?? 1,
-                position: i + 1,
+                position: questionNumber,
                 explanation: item.explanation?.trim() || null,
               },
             },
             {
-              onSuccess: () => resolve(),
-              onError: (e: any) => reject(e),
+              onSuccess: () => {
+                console.log(`✓ Zapisano pytanie ${questionNumber}/${items.length}`);
+                resolve();
+              },
+              onError: (e: any) => {
+                console.error(`✗ Błąd zapisu pytania ${questionNumber}:`, e);
+                reject(e);
+              },
             }
           );
         });
+
+        // Krótka przerwa między zapisami dla lepszej widoczności progressu
+        await new Promise(resolve => setTimeout(resolve, 150));
       }
 
-      setProgress("Quiz zapisany pomyślnie!");
+      setProgress(`✓ Zapisano wszystkie pytania (${items.length}/${items.length})`);
+      
+      // Przekierowanie do Step4 z danymi podsumowania
+      setTimeout(() => {
+        navigate("/admin/quiz-wizard/step4", { 
+          state: { 
+            activityId,
+            title,
+            questionsCount: items.length,
+            topicId,
+            isPublished,
+            passingScore,
+            timeLimit,
+            maxAttempts,
+          } 
+        });
+      }, 1500);
       
     } catch (e: any) {
       console.error('Save error:', e);
@@ -217,7 +241,6 @@ export function QuizWizardStep3() {
         setError("Nie udało się zapisać quizu. Spróbuj ponownie.");
       }
       setSaving(false);
-      setSavedActivityId(null);
       setProgress("");
     }
   };
@@ -262,7 +285,7 @@ export function QuizWizardStep3() {
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
                 placeholder="np. Quiz do materiału: Wprowadzenie do ..."
-                disabled={saving || savedActivityId !== null}
+                disabled={saving}
               />
               <p className="text-xs text-muted-foreground mt-1">
                 Tytuł będzie widoczny dla uczniów
@@ -300,7 +323,7 @@ export function QuizWizardStep3() {
               <Switch 
                 checked={isPublished} 
                 onCheckedChange={setIsPublished}
-                disabled={saving || savedActivityId !== null}
+                disabled={saving}
               />
             </div>
 
@@ -313,20 +336,9 @@ export function QuizWizardStep3() {
 
             {progress && (
               <Alert className="border-blue-200 bg-blue-50">
+                <Loader2 className="h-4 w-4 text-blue-600 animate-spin" />
                 <AlertDescription className="text-blue-900 text-sm">
                   {progress}
-                </AlertDescription>
-              </Alert>
-            )}
-
-            {savedActivityId && (
-              <Alert className="border-green-200 bg-green-50">
-                <CheckCircle className="h-4 w-4 text-green-600" />
-                <AlertDescription className="text-green-900">
-                  <span className="font-medium">Quiz zapisany!</span><br />
-                  ID aktywności: {savedActivityId}<br />
-                  Liczba pytań: {items.length}<br />
-                  <span className="text-xs">Możesz wrócić do panelu lub dodać kolejny quiz.</span>
                 </AlertDescription>
               </Alert>
             )}
@@ -334,18 +346,13 @@ export function QuizWizardStep3() {
             <div className="flex gap-2">
               <Button
                 onClick={handleSave}
-                disabled={saving || savedActivityId !== null || !title.trim() || items.length === 0}
+                disabled={saving || !title.trim() || items.length === 0}
                 className="flex-1"
               >
                 {saving ? (
                   <>
-                    <Save className="w-4 h-4 mr-2 animate-pulse" />
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                     Zapisywanie...
-                  </>
-                ) : savedActivityId ? (
-                  <>
-                    <CheckCircle className="w-4 h-4 mr-2" />
-                    Zapisano!
                   </>
                 ) : (
                   <>
@@ -366,18 +373,6 @@ export function QuizWizardStep3() {
                 </Link>
               </Button>
             </div>
-
-            {savedActivityId && (
-              <Button
-                asChild
-                variant="default"
-                className="w-full"
-              >
-                <Link to="/admin/quiz-wizard">
-                  Wróć do panelu
-                </Link>
-              </Button>
-            )}
           </CardContent>
         </Card>
 
@@ -410,7 +405,7 @@ export function QuizWizardStep3() {
                           <Input
                             value={item.question}
                             onChange={(e) => handleUpdateQuestion(idx, 'question', e.target.value)}
-                            disabled={saving || savedActivityId !== null}
+                            disabled={saving}
                             className="mt-1"
                           />
                         </div>
@@ -418,7 +413,7 @@ export function QuizWizardStep3() {
                           variant="ghost"
                           size="sm"
                           onClick={() => handleRemoveQuestion(idx)}
-                          disabled={saving || savedActivityId !== null}
+                          disabled={saving}
                           className="shrink-0 text-destructive hover:text-destructive"
                         >
                           <Trash2 className="w-4 h-4" />
@@ -448,7 +443,7 @@ export function QuizWizardStep3() {
                                 newOptions[optIdx] = e.target.value;
                                 handleUpdateQuestion(idx, 'options', newOptions);
                               }}
-                              disabled={saving || savedActivityId !== null}
+                              disabled={saving}
                               className="flex-1"
                               placeholder={`Opcja ${String.fromCharCode(65 + optIdx)}`}
                             />
@@ -456,7 +451,7 @@ export function QuizWizardStep3() {
                               variant="ghost"
                               size="sm"
                               onClick={() => handleUpdateQuestion(idx, 'answerIndex', optIdx)}
-                              disabled={saving || savedActivityId !== null}
+                              disabled={saving}
                               className={optIdx === item.answerIndex ? "text-green-600" : ""}
                             >
                               {optIdx === item.answerIndex ? "✓ Poprawna" : "Ustaw"}
@@ -471,7 +466,7 @@ export function QuizWizardStep3() {
                           <Input
                             value={item.explanation}
                             onChange={(e) => handleUpdateQuestion(idx, 'explanation', e.target.value)}
-                            disabled={saving || savedActivityId !== null}
+                            disabled={saving}
                             className="mt-1"
                           />
                         </div>
@@ -485,7 +480,7 @@ export function QuizWizardStep3() {
                           max={10}
                           value={item.points ?? 1}
                           onChange={(e) => handleUpdateQuestion(idx, 'points', Number(e.target.value))}
-                          disabled={saving || savedActivityId !== null}
+                          disabled={saving}
                           className="w-20"
                         />
                       </div>
