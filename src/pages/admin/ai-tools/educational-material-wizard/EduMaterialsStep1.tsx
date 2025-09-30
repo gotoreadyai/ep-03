@@ -16,13 +16,18 @@ import {
   Alert,
   AlertDescription,
   Badge,
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
 } from "@/components/ui";
 import { useStepStore } from "@/utility/formWizard";
 import { getLatestCurriculumForSubject, SUBJECTS } from "../course-structure-wizard/curriculum";
-import { Info, ChevronRight, Search, EyeOff, FileText } from "lucide-react";
+import { Info, ChevronRight, Search, EyeOff, FileText, Eye } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { CourseSelector } from "../CourseSelector";
-
+import { MaterialContentRenderer } from "@/pages/teacher/activities/components/MaterialContentRenderer";
 
 type StepData = {
   courseId?: number;
@@ -35,6 +40,17 @@ type StepData = {
   style?: "notebook" | "exam" | "concise";
   tone?: "neutral" | "friendly" | "formal";
   includeExercises?: boolean;
+};
+
+type Material = {
+  id: number;
+  topic_id: number;
+  title: string;
+  content: string;
+  position: number;
+  is_published: boolean;
+  duration_min?: number;
+  created_at: string;
 };
 
 const SCHEMA = {
@@ -58,6 +74,14 @@ export function EduMaterialsStep1() {
   const navigate = useNavigate();
   const data = (getStepData("em_step1") || {}) as StepData;
 
+  const [previewModal, setPreviewModal] = useState<{
+    open: boolean;
+    material: Material | null;
+  }>({
+    open: false,
+    material: null,
+  });
+
   useEffect(() => {
     registerStep("em_step1", SCHEMA);
     if (!data.subject) {
@@ -75,7 +99,7 @@ export function EduMaterialsStep1() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Kursy (już zawierają subject/level/is_exam_course — bez dodatkowego requestu)
+  // Kursy
   const { data: coursesData } = useList({
     resource: "courses",
     sorters: [{ field: "created_at", order: "desc" }],
@@ -91,10 +115,10 @@ export function EduMaterialsStep1() {
     queryOptions: { enabled: !!data.courseId },
   });
 
-  // Aktywności (materiały) w kursie — do licznika per temat
+  // Aktywności (materiały) w kursie — teraz z pełnymi danymi dla podglądu
   const topicIds = useMemo(() => (topicsData?.data || []).map((t: any) => t.id), [topicsData?.data]);
 
-  const { data: activitiesData } = useList({
+  const { data: activitiesData } = useList<Material>({
     resource: "activities",
     filters:
       topicIds.length > 0
@@ -105,21 +129,19 @@ export function EduMaterialsStep1() {
         : [],
     sorters: [{ field: "position", order: "asc" }],
     pagination: { pageSize: 1000 },
-    meta: { select: "id,topic_id,title,type,position" },
+    meta: { select: "id,topic_id,title,type,position,content,duration_min,created_at,is_published" },
     queryOptions: { enabled: topicIds.length > 0 },
   });
 
-  // Materiały per temat
+  // Materiały per temat - teraz z pełnymi obiektami
   const materialsByTopic = useMemo(() => {
-    const map: Record<number, { count: number; titles: string[] }> = {};
+    const map: Record<number, { count: number; materials: Material[] }> = {};
     if (activitiesData?.data) {
       for (const activity of activitiesData.data) {
         const topicId = activity.topic_id;
-        if (!map[topicId]) map[topicId] = { count: 0, titles: [] };
+        if (!map[topicId]) map[topicId] = { count: 0, materials: [] };
         map[topicId].count++;
-        if (map[topicId].titles.length < 3) {
-          map[topicId].titles.push(activity.title);
-        }
+        map[topicId].materials.push(activity);
       }
     }
     return map;
@@ -131,16 +153,15 @@ export function EduMaterialsStep1() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [data.courseId]);
 
-  // 🔽 wybrany kurs z cache listy
+  // wybrany kurs z cache listy
   const selectedCourse = useMemo(() => {
     return coursesData?.data?.find((c: any) => c.id === data.courseId);
   }, [coursesData?.data, data.courseId]);
 
-  // 🔁 SYNC: po wyborze kursu ustaw automatycznie parametry generowania
+  // SYNC: po wyborze kursu ustaw automatycznie parametry generowania
   useEffect(() => {
     if (!selectedCourse) return;
 
-    // Normalizacja level (na wszelki wypadek)
     const rawLevel = String(selectedCourse.level || "").toLowerCase();
     const normalizedLevel = rawLevel === "rozszerzony" ? "rozszerzony" : "podstawowy";
 
@@ -165,6 +186,14 @@ export function EduMaterialsStep1() {
   const latestCurriculum = useMemo(() => getLatestCurriculumForSubject(data.subject), [data.subject]);
 
   const canContinue = !!data.courseId && !!data.topicId;
+
+  const handlePreviewMaterial = (material: Material, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setPreviewModal({
+      open: true,
+      material,
+    });
+  };
 
   return (
     <SubPage>
@@ -220,35 +249,38 @@ export function EduMaterialsStep1() {
                               )}
                             </div>
 
-                            <div className="mt-2 ml-7">
-                              {materials?.count > 0 ? (
-                                <>
-                                  <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-1">
-                                    <FileText className="w-3 h-3" />
-                                    <span>Materiały:</span>
-                                    <Badge variant="secondary" className="text-xs h-4 px-1">
-                                      {materials.count}
-                                    </Badge>
-                                  </div>
-                                  <ul className="space-y-0.5 ml-4">
-                                    {materials.titles.map((title, idx) => (
-                                      <li key={idx} className="text-[11px] text-muted-foreground/80 truncate">
-                                        <span className="text-primary/40 mr-1">•</span>
-                                        {title}
-                                      </li>
-                                    ))}
-                                    {materials.count > materials.titles.length && (
-                                      <li className="text-[11px] text-muted-foreground/60 italic">
-                                        <span className="text-primary/30 mr-1">•</span>
-                                        i {materials.count - materials.titles.length} więcej...
-                                      </li>
-                                    )}
-                                  </ul>
-                                </>
-                              ) : (
-                                <div className="text-xs text-muted-foreground/50 italic">Brak materiałów</div>
-                              )}
-                            </div>
+                            {/* Pokaż materiały TYLKO dla zaznaczonego tematu */}
+                            {selected && (
+                              <div className="mt-2 ml-7">
+                                {materials?.count > 0 ? (
+                                  <>
+                                    <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-1">
+                                      <FileText className="w-3 h-3" />
+                                      <span>Materiały:</span>
+                                      <Badge variant="secondary" className="text-xs h-4 px-1">
+                                        {materials.count}
+                                      </Badge>
+                                    </div>
+                                    <ul className="space-y-0.5 ml-4">
+                                      {materials.materials.map((material) => (
+                                        <li key={material.id} className="text-[11px]">
+                                          <button
+                                            onClick={(e) => handlePreviewMaterial(material, e)}
+                                            className="text-primary/70 hover:text-primary hover:underline inline-flex items-center gap-1 w-full text-left"
+                                          >
+                                            <span className="mr-1">•</span>
+                                            <span className="truncate flex-1">{material.title}</span>
+                                            <Eye className="w-3 h-3 opacity-0 hover:opacity-100 transition-opacity flex-shrink-0" />
+                                          </button>
+                                        </li>
+                                      ))}
+                                    </ul>
+                                  </>
+                                ) : (
+                                  <div className="text-xs text-muted-foreground/50 italic">Brak materiałów</div>
+                                )}
+                              </div>
+                            )}
                           </div>
 
                           <div
@@ -262,7 +294,7 @@ export function EduMaterialsStep1() {
                 </div>
 
                 <div className="p-2 border-t text-[11px] text-muted-foreground">
-                  Kliknij temat aby go wybrać. Liczba przy temacie pokazuje istniejące materiały.
+                  Kliknij temat aby go wybrać i zobaczyć wszystkie materiały. Kliknij tytuł materiału aby zobaczyć podgląd.
                 </div>
               </div>
             )}
@@ -383,6 +415,39 @@ export function EduMaterialsStep1() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Modal podglądu materiału */}
+      <Dialog
+        open={previewModal.open}
+        onOpenChange={(open) => {
+          if (!open) {
+            setPreviewModal({ open: false, material: null });
+          }
+        }}
+      >
+        <DialogContent className="max-w-4xl max-h-[90vh]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Eye className="w-5 h-5" />
+              {previewModal.material?.title}
+            </DialogTitle>
+            <DialogDescription>Podgląd materiału • {previewModal.material?.duration_min || 20} min</DialogDescription>
+          </DialogHeader>
+
+          {previewModal.material && (
+            <MaterialContentRenderer
+              content={previewModal.material.content}
+              metadata={{
+                duration_min: previewModal.material.duration_min,
+                position: previewModal.material.position,
+                created_at: previewModal.material.created_at,
+              }}
+              showMetadata={true}
+              height="500px"
+            />
+          )}
+        </DialogContent>
+      </Dialog>
     </SubPage>
   );
 }

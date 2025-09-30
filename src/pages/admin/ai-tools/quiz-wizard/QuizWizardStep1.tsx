@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useState } from "react";
+// src/pages/admin/ai-tools/quiz-wizard/QuizWizardStep1.tsx
+import { useEffect, useState } from "react";
 import { useList } from "@refinedev/core";
 import { useNavigate } from "react-router-dom";
 import { SubPage } from "@/components/layout";
@@ -18,7 +19,8 @@ import {
   Badge,
 } from "@/components/ui";
 import { useStepStore } from "@/utility/formWizard";
-import { Info, ChevronRight, Search, EyeOff, SlidersHorizontal } from "lucide-react";
+import { Info, ChevronRight, EyeOff, SlidersHorizontal } from "lucide-react";
+import { MaterialSelector } from "../MaterialSelector";
 
 type StepData = {
   courseId?: number;
@@ -55,7 +57,6 @@ export function QuizWizardStep1() {
   const data = (getStepData("qw_step1") || {}) as StepData;
 
   const [showOnlyPublished, setShowOnlyPublished] = useState(true);
-  const [query, setQuery] = useState("");
 
   useEffect(() => {
     registerStep("qw_step1", SCHEMA);
@@ -89,29 +90,6 @@ export function QuizWizardStep1() {
     pagination: { pageSize: 500 },
     queryOptions: { enabled: !!data.courseId },
   });
-
-  // Materiały w temacie
-  const { data: materialsData, isLoading: materialsLoading } = useList({
-    resource: "activities",
-    filters: data.topicId
-      ? [
-          { field: "topic_id", operator: "eq", value: data.topicId },
-          { field: "type", operator: "eq", value: "material" },
-        ]
-      : [],
-    sorters: [{ field: "position", order: "asc" }],
-    pagination: { pageSize: 1000 },
-    meta: { select: "id,title,position,is_published" },
-    queryOptions: { enabled: !!data.topicId },
-  });
-
-  // Filtrowanie materiałów
-  const filteredMaterials = useMemo(() => {
-    const list = (materialsData?.data || []) as any[];
-    if (!query.trim()) return list;
-    const q = query.toLowerCase();
-    return list.filter((m) => String(m.title).toLowerCase().includes(q) || String(m.position).includes(q));
-  }, [materialsData?.data, query]);
 
   const canContinue = !!data.courseId && !!data.topicId && !!data.materialId;
 
@@ -174,54 +152,13 @@ export function QuizWizardStep1() {
             </Select>
 
             {data.topicId && (
-              <div className="rounded-lg border">
-                <div className="flex items-center gap-2 p-2 border-b bg-muted/40">
-                  <Search className="w-4 h-4 text-muted-foreground" />
-                  <Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Filtruj materiały…" className="h-8" />
-                </div>
-
-                <div className="divide-y">
-                  {materialsLoading && <div className="p-3 text-xs text-muted-foreground">Ładowanie materiałów…</div>}
-                  {!materialsLoading && filteredMaterials.length === 0 && (
-                    <div className="p-3 text-xs text-muted-foreground">{query ? "Brak wyników dla filtru." : "Brak materiałów w tym temacie."}</div>
-                  )}
-                  {filteredMaterials.map((m: any) => {
-                    const selected = data.materialId === m.id;
-
-                    return (
-                      <button
-                        key={m.id}
-                        type="button"
-                        onClick={() => setStepData("qw_step1", { materialId: m.id })}
-                        className={["w-full text-left p-3 hover:bg-muted/50 transition", selected ? "bg-cyan-50/60 ring-1 ring-cyan-200" : ""].join(" ")}
-                      >
-                        <div className="flex items-start justify-between gap-3">
-                          <div className="min-w-0 flex-1">
-                            <div className="text-sm font-medium flex items-center gap-2">
-                              <span className="shrink-0 inline-flex items-center justify-center w-5 h-5 rounded-full bg-primary/10 text-xs font-semibold">
-                                {m.position}
-                              </span>
-                              <span className="truncate">{m.title}</span>
-                              {!m.is_published && (
-                                <Badge variant="outline" className="text-xs shrink-0">
-                                  <EyeOff className="w-3 h-3" />
-                                </Badge>
-                              )}
-                            </div>
-                          </div>
-
-                          <div
-                            className={["shrink-0 w-3 h-3 rounded-full border mt-1", selected ? "bg-cyan-500 border-cyan-500" : "bg-white"].join(" ")}
-                            aria-hidden
-                          />
-                        </div>
-                      </button>
-                    );
-                  })}
-                </div>
-
-                <div className="p-2 border-t text-[11px] text-muted-foreground">Kliknij materiał, aby go wybrać.</div>
-              </div>
+              <MaterialSelector
+                topicId={data.topicId}
+                selectedMaterialId={data.materialId || null}
+                onSelectMaterial={(materialId) => setStepData("qw_step1", { materialId })}
+                showPreview={true}
+                highlightColor="cyan"
+              />
             )}
           </CardContent>
         </Card>

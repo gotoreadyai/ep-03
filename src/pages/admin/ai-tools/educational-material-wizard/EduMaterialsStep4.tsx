@@ -31,6 +31,7 @@ import {
   RefreshCw,
   Save,
   ChevronRight,
+  ChevronDown,
 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -102,6 +103,7 @@ export function EduMaterialsStep4() {
   const [selectedCourseId, setSelectedCourseId] = useState<number | null>(null);
   const [selectedTopicId, setSelectedTopicId] = useState<number | null>(null);
   const [expandedActivity, setExpandedActivity] = useState<number | null>(null);
+  const [expandedSections, setExpandedSections] = useState<Record<number, string | null>>({});
   const [generating, setGenerating] = useState<GeneratingState>({ 
     activityId: null, 
     sectionId: null 
@@ -192,6 +194,14 @@ export function EduMaterialsStep4() {
     }
     
     return null;
+  };
+
+  // Toggle sekcji (accordion)
+  const toggleSection = (activityId: number, sectionId: string) => {
+    setExpandedSections(prev => ({
+      ...prev,
+      [activityId]: prev[activityId] === sectionId ? null : sectionId
+    }));
   };
 
   // Generowanie pytania kontrolnego
@@ -359,6 +369,7 @@ answerIndex: ${quizModal.quiz.answerIndex}
                 setSelectedCourseId(courseId);
                 setSelectedTopicId(null);
                 setExpandedActivity(null);
+                setExpandedSections({});
               }}
               label="Kurs"
               showAlert={false}
@@ -372,6 +383,7 @@ answerIndex: ${quizModal.quiz.answerIndex}
                   onChange={(e) => {
                     setSelectedTopicId(e.target.value ? Number(e.target.value) : null);
                     setExpandedActivity(null);
+                    setExpandedSections({});
                   }}
                   className="w-full rounded-md border px-3 py-2 text-sm"
                 >
@@ -484,38 +496,36 @@ answerIndex: ${quizModal.quiz.answerIndex}
                                 const existingQuiz = extractQuizFromSection(section.content);
                                 const isGenerating = generating.activityId === activity.id && 
                                                    generating.sectionId === section.id;
+                                const isSectionExpanded = expandedSections[activity.id] === section.id;
                                 
                                 return (
                                   <div
                                     key={section.id}
-                                    className="rounded-lg border p-3 space-y-2"
+                                    className="rounded-lg border overflow-hidden"
                                   >
-                                    <div className="flex items-start justify-between">
-                                      <div className="flex-1">
-                                        <h4 className="font-medium text-sm">{section.title}</h4>
-                                        {existingQuiz && (
-                                          <div className="mt-2 p-2 bg-muted rounded text-xs">
-                                            <div className="flex items-start gap-2">
-                                              <HelpCircle className="w-3 h-3 mt-0.5 text-primary" />
-                                              <div>
-                                                <p className="font-medium">{existingQuiz.question}</p>
-                                                <div className="mt-1 space-y-0.5">
-                                                  {existingQuiz.options.map((opt, idx) => (
-                                                    <div 
-                                                      key={idx}
-                                                      className={idx === existingQuiz.answerIndex ? 'text-green-600 font-medium' : ''}
-                                                    >
-                                                      {idx + 1}. {opt}
-                                                      {idx === existingQuiz.answerIndex && ' ✓'}
-                                                    </div>
-                                                  ))}
-                                                </div>
-                                              </div>
-                                            </div>
-                                          </div>
+                                    {/* Nagłówek sekcji */}
+                                    <div className="flex items-start justify-between p-3 gap-3">
+                                      <button
+                                        onClick={() => toggleSection(activity.id, section.id)}
+                                        className="flex-1 flex items-start gap-2 text-left hover:opacity-70 transition-opacity"
+                                      >
+                                        {isSectionExpanded ? (
+                                          <ChevronDown className="w-4 h-4 mt-0.5 flex-shrink-0 text-muted-foreground" />
+                                        ) : (
+                                          <ChevronRight className="w-4 h-4 mt-0.5 flex-shrink-0 text-muted-foreground" />
                                         )}
-                                      </div>
-                                      <div>
+                                        <div className="flex-1">
+                                          <h4 className="font-medium text-sm">{section.title}</h4>
+                                          {existingQuiz && (
+                                            <Badge variant="secondary" className="text-xs mt-1">
+                                              <HelpCircle className="w-3 h-3 mr-1" />
+                                              Zawiera pytanie
+                                            </Badge>
+                                          )}
+                                        </div>
+                                      </button>
+                                      
+                                      <div className="flex-shrink-0">
                                         {existingQuiz ? (
                                           <Button
                                             size="sm"
@@ -546,6 +556,47 @@ answerIndex: ${quizModal.quiz.answerIndex}
                                         )}
                                       </div>
                                     </div>
+                                    
+                                    {/* Rozwinięta treść sekcji (accordion) */}
+                                    {isSectionExpanded && (
+                                      <div className="border-t bg-muted/30">
+                                        <ScrollArea className="max-h-[300px]">
+                                          <div className="p-4">
+                                            <div className="prose prose-sm max-w-none dark:prose-invert">
+                                              <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                                                {section.content.replace(/```quiz[\s\S]*?```/g, '')}
+                                              </ReactMarkdown>
+                                            </div>
+                                            
+                                            {existingQuiz && (
+                                              <div className="mt-4 p-3 bg-background rounded-lg border">
+                                                <div className="flex items-start gap-2">
+                                                  <HelpCircle className="w-4 h-4 mt-0.5 text-primary flex-shrink-0" />
+                                                  <div className="flex-1">
+                                                    <p className="font-medium text-sm mb-2">{existingQuiz.question}</p>
+                                                    <div className="space-y-1">
+                                                      {existingQuiz.options.map((opt, idx) => (
+                                                        <div 
+                                                          key={idx}
+                                                          className={`text-xs p-2 rounded ${
+                                                            idx === existingQuiz.answerIndex 
+                                                              ? 'bg-green-100 dark:bg-green-900/30 text-green-900 dark:text-green-100 font-medium' 
+                                                              : 'bg-muted'
+                                                          }`}
+                                                        >
+                                                          {idx + 1}. {opt}
+                                                          {idx === existingQuiz.answerIndex && ' ✓'}
+                                                        </div>
+                                                      ))}
+                                                    </div>
+                                                  </div>
+                                                </div>
+                                              </div>
+                                            )}
+                                          </div>
+                                        </ScrollArea>
+                                      </div>
+                                    )}
                                   </div>
                                 );
                               })}
