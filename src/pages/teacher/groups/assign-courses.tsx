@@ -112,7 +112,7 @@ export const GroupsAssignCourses = () => {
           selectedCourses.length === 1 ? "kurs" : "kursów"
         } do grupy`
       );
-      navigate(`/groups/show/${id}`);
+      navigate(`/teacher/groups/show/${id}`);
     } catch (error) {
       toast.error("Błąd podczas przypisywania kursów");
       console.error("Error details:", error);
@@ -251,7 +251,7 @@ export const GroupsAssignCourses = () => {
                     size="sm"
                     variant="outline"
                     className="mt-4"
-                    onClick={() => navigate("/courses")}
+                    onClick={() => navigate("/teacher/courses")}
                   >
                     Przejdź do listy kursów
                   </Button>

@@ -675,105 +675,105 @@ answerIndex: ${quizModal.quiz.answerIndex}
           });
         }
       }}>
-        <DialogContent className="max-w-2xl">
-          <DialogHeader>
-            <DialogTitle>Wygenerowane pytanie kontrolne</DialogTitle>
-            <DialogDescription>
-              Sekcja: {quizModal.sectionTitle}
-            </DialogDescription>
-          </DialogHeader>
-          
-          {quizModal.quiz && (
-            <div className="space-y-4">
-              <div className="rounded-lg border p-4 bg-muted/50">
-                <p className="font-medium mb-3">{quizModal.quiz.question}</p>
-                <div className="space-y-2">
-                  {quizModal.quiz.options.map((option, idx) => (
-                    <div 
-                      key={idx}
-                      className={`flex items-center gap-2 p-2 rounded ${
-                        idx === quizModal.quiz?.answerIndex 
-                          ? 'bg-green-100 dark:bg-green-900/30 border border-green-300' 
-                          : ''
-                      }`}
-                    >
-                      <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
-                        idx === quizModal.quiz?.answerIndex 
-                          ? 'border-green-500 bg-green-500' 
-                          : 'border-gray-300'
-                      }`}>
-                        {idx === quizModal.quiz?.answerIndex && (
-                          <CheckCircle className="w-3 h-3 text-white" />
-                        )}
-                      </div>
-                      <span className="text-sm">{option}</span>
-                    </div>
-                  ))}
-                </div>
+<DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+  <DialogHeader>
+    <DialogTitle>Wygenerowane pytanie kontrolne</DialogTitle>
+    <DialogDescription>
+      Sekcja: {quizModal.sectionTitle}
+    </DialogDescription>
+  </DialogHeader>
+  
+  {quizModal.quiz && (
+    <div className="space-y-4">
+      <div className="rounded-lg border p-4 bg-muted/50">
+        <p className="font-medium mb-3 break-words">{quizModal.quiz.question}</p>
+        <div className="space-y-2">
+          {quizModal.quiz.options.map((option, idx) => (
+            <div 
+              key={idx}
+              className={`flex items-center gap-2 p-2 rounded ${
+                idx === quizModal.quiz?.answerIndex 
+                  ? 'bg-green-100 dark:bg-green-900/30 border border-green-300' 
+                  : ''
+              }`}
+            >
+              <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 ${
+                idx === quizModal.quiz?.answerIndex 
+                  ? 'border-green-500 bg-green-500' 
+                  : 'border-gray-300'
+              }`}>
+                {idx === quizModal.quiz?.answerIndex && (
+                  <CheckCircle className="w-3 h-3 text-white" />
+                )}
               </div>
+              <span className="text-sm break-words">{option}</span>
+            </div>
+          ))}
+        </div>
+      </div>
 
-              <div>
-                <p className="text-sm font-medium mb-2">Kod YAML (do wstawienia):</p>
-                <div className="rounded-lg border bg-background p-3 font-mono text-xs overflow-x-auto">
-                  <pre>{`\`\`\`quiz
+      <div>
+        <p className="text-sm font-medium mb-2">Kod YAML (do wstawienia):</p>
+        <div className="rounded-lg border bg-background p-3 font-mono text-xs max-h-[300px] overflow-auto">
+          <pre className="whitespace-pre-wrap break-words">{`\`\`\`quiz
 question: "${quizModal.quiz.question}"
 options:
 ${quizModal.quiz.options.map(opt => `  - "${opt}"`).join('\n')}
 answerIndex: ${quizModal.quiz.answerIndex}
 \`\`\``}</pre>
-                </div>
-              </div>
+        </div>
+      </div>
 
-              <div className="flex justify-end gap-2">
-                <Button
-                  variant="outline"
-                  onClick={() => setQuizModal({
-                    open: false,
-                    quiz: null,
-                    activityId: null,
-                    sectionId: null,
-                    sectionTitle: null,
-                    sectionContent: null
-                  })}
-                  disabled={savingActivity !== null}
-                >
-                  Anuluj
-                </Button>
-                <Button
-                  variant="outline"
-                  onClick={() => {
-                    if (quizModal.activityId && quizModal.sectionId && quizModal.sectionTitle && quizModal.sectionContent) {
-                      const activity = activitiesData?.data?.find(a => a.id === quizModal.activityId);
-                      if (activity) {
-                        generateQuiz(activity, quizModal.sectionId, quizModal.sectionTitle, quizModal.sectionContent);
-                      }
-                    }
-                  }}
-                  disabled={savingActivity !== null}
-                >
-                  <RefreshCw className="w-4 h-4 mr-1" />
-                  Wygeneruj ponownie
-                </Button>
-                <Button
-                  onClick={saveQuizToActivity}
-                  disabled={savingActivity !== null}
-                >
-                  {savingActivity ? (
-                    <>
-                      <Loader2 className="w-4 h-4 mr-1 animate-spin" />
-                      Zapisywanie...
-                    </>
-                  ) : (
-                    <>
-                      <Save className="w-4 h-4 mr-1" />
-                      Zapisz pytanie
-                    </>
-                  )}
-                </Button>
-              </div>
-            </div>
+      <div className="flex justify-end gap-2">
+        <Button
+          variant="outline"
+          onClick={() => setQuizModal({
+            open: false,
+            quiz: null,
+            activityId: null,
+            sectionId: null,
+            sectionTitle: null,
+            sectionContent: null
+          })}
+          disabled={savingActivity !== null}
+        >
+          Anuluj
+        </Button>
+        <Button
+          variant="outline"
+          onClick={() => {
+            if (quizModal.activityId && quizModal.sectionId && quizModal.sectionTitle && quizModal.sectionContent) {
+              const activity = activitiesData?.data?.find(a => a.id === quizModal.activityId);
+              if (activity) {
+                generateQuiz(activity, quizModal.sectionId, quizModal.sectionTitle, quizModal.sectionContent);
+              }
+            }
+          }}
+          disabled={savingActivity !== null}
+        >
+          <RefreshCw className="w-4 h-4 mr-1" />
+          Wygeneruj ponownie
+        </Button>
+        <Button
+          onClick={saveQuizToActivity}
+          disabled={savingActivity !== null}
+        >
+          {savingActivity ? (
+            <>
+              <Loader2 className="w-4 h-4 mr-1 animate-spin" />
+              Zapisywanie...
+            </>
+          ) : (
+            <>
+              <Save className="w-4 h-4 mr-1" />
+              Zapisz pytanie
+            </>
           )}
-        </DialogContent>
+        </Button>
+      </div>
+    </div>
+  )}
+</DialogContent>
       </Dialog>
     </SubPage>
   );
