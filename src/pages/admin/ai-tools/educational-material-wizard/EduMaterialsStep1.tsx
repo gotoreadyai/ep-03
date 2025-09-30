@@ -21,7 +21,8 @@ import { useStepStore } from "@/utility/formWizard";
 import { getLatestCurriculumForSubject, SUBJECTS } from "../course-structure-wizard/curriculum";
 import { Info, ChevronRight, Search, EyeOff, FileText } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { CourseSelector } from "@/components/course/CourseSelector";
+import { CourseSelector } from "../CourseSelector";
+
 
 type StepData = {
   courseId?: number;
