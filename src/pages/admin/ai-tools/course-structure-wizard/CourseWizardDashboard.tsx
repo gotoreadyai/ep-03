@@ -83,7 +83,7 @@ export function CourseWizardDashboard() {
   {/* Podsumowanie */}
   <Button asChild variant="secondary" className="flex-1">
     <Link to="/admin/course-structure/step4" className="inline-flex items-center gap-2">
-      Podsumowanie
+      Edytuj istniejące kursy
       <ChevronRight className="w-4 h-4" />
     </Link>
   </Button>
