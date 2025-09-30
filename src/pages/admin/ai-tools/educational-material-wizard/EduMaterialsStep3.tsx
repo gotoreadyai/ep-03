@@ -261,15 +261,7 @@ export function EduMaterialsStep3() {
                   </Link>
                 </Button>
                 
-                <Button
-                  asChild
-                  variant="outline"
-                  className="w-full"
-                >
-                  <Link to={`/teacher/activities/show/${savedActivityId}`}>
-                    Zobacz podgląd materiału
-                  </Link>
-                </Button>
+               
                 
                 <Button
                   asChild
