@@ -29,6 +29,9 @@ type StepData = {
   difficulty?: "easy" | "medium" | "hard" | "mixed";
   includeExplanations?: boolean;
   randomized?: boolean;
+  passingScore?: number;
+  timeLimit?: number;
+  maxAttempts?: number;
 };
 
 const SCHEMA = {
@@ -41,6 +44,9 @@ const SCHEMA = {
     difficulty: { type: "string" },
     includeExplanations: { type: "boolean" },
     randomized: { type: "boolean" },
+    passingScore: { type: "number" },
+    timeLimit: { type: "number" },
+    maxAttempts: { type: "number" },
   },
 };
 
@@ -60,6 +66,9 @@ export function QuizWizardStep1() {
         difficulty: "mixed",
         includeExplanations: true,
         randomized: true,
+        passingScore: 70,
+        timeLimit: undefined,
+        maxAttempts: undefined,
       });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -252,14 +261,64 @@ export function QuizWizardStep1() {
                 </Select>
               </div>
 
-              <div className="flex items-center gap-2">
-                <Checkbox checked={data.includeExplanations ?? true} onCheckedChange={(v) => setStepData("qw_step1", { includeExplanations: Boolean(v) })} />
-                <span className="text-sm">Dodaj wyjaśnienia do poprawnych odpowiedzi</span>
+              <div className="border-t pt-3 space-y-3">
+                <div className="text-xs font-medium text-muted-foreground">Parametry quizu</div>
+                
+                <div>
+                  <div className="text-xs mb-1">
+                    Wynik zaliczający (%)
+                    <span className="text-muted-foreground ml-1">domyślnie: 70%</span>
+                  </div>
+                  <Input
+                    type="number"
+                    min={0}
+                    max={100}
+                    value={data.passingScore ?? 70}
+                    onChange={(e) => setStepData("qw_step1", { passingScore: Number(e.target.value) })}
+                  />
+                </div>
+
+                <div>
+                  <div className="text-xs mb-1">
+                    Limit czasu (minuty)
+                    <span className="text-muted-foreground ml-1">opcjonalne</span>
+                  </div>
+                  <Input
+                    type="number"
+                    min={1}
+                    max={180}
+                    placeholder="Brak limitu"
+                    value={data.timeLimit ?? ""}
+                    onChange={(e) => setStepData("qw_step1", { timeLimit: e.target.value ? Number(e.target.value) : undefined })}
+                  />
+                </div>
+
+                <div>
+                  <div className="text-xs mb-1">
+                    Max. liczba prób
+                    <span className="text-muted-foreground ml-1">opcjonalne</span>
+                  </div>
+                  <Input
+                    type="number"
+                    min={1}
+                    max={10}
+                    placeholder="Bez limitu"
+                    value={data.maxAttempts ?? ""}
+                    onChange={(e) => setStepData("qw_step1", { maxAttempts: e.target.value ? Number(e.target.value) : undefined })}
+                  />
+                </div>
               </div>
 
-              <div className="flex items-center gap-2">
-                <Checkbox checked={data.randomized ?? true} onCheckedChange={(v) => setStepData("qw_step1", { randomized: Boolean(v) })} />
-                <span className="text-sm">Losuj kolejność odpowiedzi</span>
+              <div className="border-t pt-3 space-y-2">
+                <div className="flex items-center gap-2">
+                  <Checkbox checked={data.includeExplanations ?? true} onCheckedChange={(v) => setStepData("qw_step1", { includeExplanations: Boolean(v) })} />
+                  <span className="text-sm">Dodaj wyjaśnienia do poprawnych odpowiedzi</span>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <Checkbox checked={data.randomized ?? true} onCheckedChange={(v) => setStepData("qw_step1", { randomized: Boolean(v) })} />
+                  <span className="text-sm">Losuj kolejność odpowiedzi</span>
+                </div>
               </div>
 
               <Alert>
