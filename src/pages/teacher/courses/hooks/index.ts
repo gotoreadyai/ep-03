@@ -175,6 +175,14 @@ interface Activity {
   };
 }
 
+interface Group {
+  id: number;
+  name: string;
+  academic_year: string;
+  is_active: boolean;
+  vendor_id: number;
+}
+
 export const useCourseData = (courseId: string | undefined) => {
   // Pobierz dane kursu
   const { data: courseData, isLoading: courseLoading } = useOne({
@@ -261,6 +269,49 @@ export const useCourseData = (courseId: string | undefined) => {
     },
   });
 
+  // Pobierz grupy z dostępem do kursu
+  const groupIds = accessData?.data
+    ?.filter(access => access.group_id)
+    .map(access => access.group_id) || [];
+
+  const { data: groupsData } = useList<Group>({
+    resource: "groups",
+    filters: groupIds.length > 0 ? [
+      {
+        field: "id",
+        operator: "in",
+        value: groupIds,
+      },
+    ] : [],
+    pagination: {
+      mode: "off",
+    },
+    queryOptions: {
+      enabled: groupIds.length > 0,
+    },
+  });
+
+  // Pobierz liczbę uczniów w grupach
+  const { data: membersData } = useList({
+    resource: "group_members",
+    filters: groupIds.length > 0 ? [
+      {
+        field: "group_id",
+        operator: "in",
+        value: groupIds,
+      },
+    ] : [],
+    pagination: {
+      mode: "off",
+    },
+    meta: {
+      select: "group_id",
+    },
+    queryOptions: {
+      enabled: groupIds.length > 0,
+    },
+  });
+
   const isLoading = courseLoading || topicsLoading;
 
   const stats = {
@@ -275,14 +326,21 @@ export const useCourseData = (courseId: string | undefined) => {
     ) || [];
   };
 
+  const getMembersCountForGroup = (groupId: number) => {
+    return membersData?.data?.filter(m => m.group_id === groupId).length || 0;
+  };
+
   return {
     course: courseData?.data,
     topics: topicsData?.data || [],
     activities: activitiesData?.data || [],
+    groups: groupsData?.data || [],
+    access: accessData?.data || [],
     stats,
     isLoading,
     refetchTopics,
     refetchActivities,
     getActivitiesForTopic,
+    getMembersCountForGroup,
   };
 };

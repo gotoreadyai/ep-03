@@ -13,7 +13,7 @@ import {
   Layout,
   Sparkles,
 } from "lucide-react";
-import { Button } from "@/components/ui";
+import { Button, Badge } from "@/components/ui";
 import { FlexBox } from "@/components/shared";
 import { SubPage } from "@/components/layout";
 import { useParams, useSearchParams } from "react-router-dom";
@@ -21,6 +21,7 @@ import { toast } from "sonner";
 import { TopicCard } from "./components/TopicCard";
 import { ActivityCard } from "./components/ActivityCard";
 import { CourseOverview } from "./components/CourseOverview";
+import { GroupAccessCard } from "./components/GroupAccessCard";
 import { LoadingState, CourseStats, DraggableList } from "./components/shared";
 import { 
   useCourseData, 
@@ -39,11 +40,13 @@ export const CoursesShow = () => {
   const { 
     course, 
     topics, 
+    groups,
     stats, 
     isLoading, 
     refetchTopics, 
     refetchActivities,
-    getActivitiesForTopic 
+    getActivitiesForTopic,
+    getMembersCountForGroup,
   } = useCourseData(id);
   const { togglePublish: toggleTopicPublish } = usePublishToggle('topics');
   const { togglePublish: toggleActivityPublish } = usePublishToggle('activities');
@@ -338,13 +341,36 @@ export const CoursesShow = () => {
       {/* Grupy z dostępem */}
       <Card>
         <CardHeader>
-          <CardTitle>Grupy z dostępem</CardTitle>
+          <FlexBox>
+            <CardTitle className="flex items-center gap-2">
+              <Users className="w-5 h-5" />
+              Grupy z dostępem
+            </CardTitle>
+            <Badge variant="outline">
+              {groups.length} {groups.length === 1 ? 'grupa' : 'grup'}
+            </Badge>
+          </FlexBox>
         </CardHeader>
         <CardContent>
-          <div className="text-center py-8 text-muted-foreground">
-            <Users className="w-12 h-12 mx-auto mb-3 opacity-20" />
-            <p>Lista grup (do implementacji)</p>
-          </div>
+          {groups.length > 0 ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {groups.map((group) => (
+                <GroupAccessCard
+                  key={group.id}
+                  group={group}
+                  membersCount={getMembersCountForGroup(group.id)}
+                />
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-8 text-muted-foreground">
+              <Users className="w-12 h-12 mx-auto mb-3 opacity-20" />
+              <p>Brak przypisanych grup do tego kursu</p>
+              <p className="text-sm mt-2">
+                Administrator może przypisać grupy w ustawieniach kursu
+              </p>
+            </div>
+          )}
         </CardContent>
       </Card>
 
