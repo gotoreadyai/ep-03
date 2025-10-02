@@ -9,8 +9,6 @@ import {
   UserPlus,
   Trash2,
   Calendar,
-  Clock,
-  ExternalLink,
   Mail,
   AlertCircle,
 } from "lucide-react";
@@ -241,7 +239,8 @@ export const GroupsShow = () => {
                 {membersData.data.map((member: any) => (
                   <div
                     key={member.user_id}
-                    className="p-4 border rounded-lg hover:bg-muted/30 transition-all duration-200 group"
+                    className="p-4 border rounded-lg hover:bg-muted/30 transition-all duration-200 group cursor-pointer"
+                    onClick={() => show("users", member.user_id)}
                   >
                     <div className="flex items-start justify-between gap-4">
                       <div className="flex gap-3 flex-1 min-w-0">
@@ -268,26 +267,11 @@ export const GroupsShow = () => {
                               <Button 
                                 variant="ghost" 
                                 size="icon"
-                                className="h-8 w-8"
-                                onClick={() => show("users", member.user_id)}
-                              >
-                                <ExternalLink className="h-4 w-4" />
-                              </Button>
-                            </TooltipTrigger>
-                            <TooltipContent>
-                              <p>Zobacz profil</p>
-                            </TooltipContent>
-                          </Tooltip>
-                        </TooltipProvider>
-                        
-                        <TooltipProvider>
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <Button 
-                                variant="ghost" 
-                                size="icon"
                                 className="h-8 w-8 hover:bg-red-50"
-                                onClick={() => handleRemoveMember(member.user_id, member.users?.full_name)}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleRemoveMember(member.user_id, member.users?.full_name);
+                                }}
                               >
                                 <Trash2 className="h-4 w-4 text-red-600" />
                               </Button>
@@ -334,7 +318,8 @@ export const GroupsShow = () => {
                 {coursesData.data.map((access: any) => (
                   <div
                     key={access.course_id}
-                    className="p-4 border rounded-lg hover:bg-muted/30 transition-all duration-200 group"
+                    className="p-4 border rounded-lg hover:bg-muted/30 transition-all duration-200 group cursor-pointer"
+                    onClick={() => show("courses", access.course_id)}
                   >
                     <div className="flex items-start justify-between gap-4">
                       <div className="flex gap-3 flex-1 min-w-0">
@@ -379,26 +364,11 @@ export const GroupsShow = () => {
                               <Button 
                                 variant="ghost" 
                                 size="icon"
-                                className="h-8 w-8"
-                                onClick={() => show("courses", access.course_id)}
-                              >
-                                <ExternalLink className="h-4 w-4" />
-                              </Button>
-                            </TooltipTrigger>
-                            <TooltipContent>
-                              <p>Zobacz kurs</p>
-                            </TooltipContent>
-                          </Tooltip>
-                        </TooltipProvider>
-                        
-                        <TooltipProvider>
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <Button 
-                                variant="ghost" 
-                                size="icon"
                                 className="h-8 w-8 hover:bg-red-50"
-                                onClick={() => handleRemoveCourse(access.course_id, access.courses?.title)}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleRemoveCourse(access.course_id, access.courses?.title);
+                                }}
                               >
                                 <Trash2 className="h-4 w-4 text-red-600" />
                               </Button>
