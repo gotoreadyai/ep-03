@@ -26,8 +26,6 @@ import { Search, Users, BookOpen, Calendar } from "lucide-react";
 import { toast } from "sonner";
 import { GroupCoursesInfoCard } from "./components/GroupCoursesInfoCard";
 
-
-
 type Group = {
   id: number;
   name: string;
@@ -68,10 +66,10 @@ export const GroupCoursesManagement = () => {
     sorters: [{ field: "title", order: "asc" }],
   });
 
-  // Pobierz przypisania
+  // Pobierz przypisania - POPRAWIONY FILTR
   const { data: accessData, refetch: refetchAccess } = useList<CourseAccess>({
     resource: "course_access",
-    filters: [{ field: "group_id", operator: "nnull", value: true }],
+    filters: [{ field: "group_id", operator: "nnull", value: null }],
     pagination: { pageSize: 10000 },
   });
 
@@ -140,7 +138,8 @@ export const GroupCoursesManagement = () => {
         toast.success("Kurs dodany");
       }
 
-      refetchAccess();
+      // Poczekaj na refetch - POPRAWIONE
+      await refetchAccess();
     } catch (error: any) {
       toast.error(error.message || "Wystąpił błąd");
     } finally {
