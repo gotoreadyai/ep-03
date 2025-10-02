@@ -105,10 +105,7 @@ export const GroupsList = () => {
           title="Grupy"
           description="Zarządzaj grupami uczniów i przypisuj im kursy"
         />
-        <Button onClick={() => create("groups")}>
-          <Plus className="w-4 h-4 mr-2" />
-          Dodaj grupę
-        </Button>
+       
       </FlexBox>
 
       <FlexBox>
