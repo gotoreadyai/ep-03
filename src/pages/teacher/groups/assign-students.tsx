@@ -101,7 +101,7 @@ export const GroupsAssignStudents = () => {
       await Promise.all(promises);
 
       toast.success(`Dodano ${selectedStudents.length} uczniów do grupy`);
-      navigate(`/groups/show/${id}`);
+      navigate(`/teacher/groups/show/${id}`);
     } catch (error) {
       toast.error("Błąd podczas dodawania uczniów");
       console.error("Error details:", error);
