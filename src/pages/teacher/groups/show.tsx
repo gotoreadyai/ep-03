@@ -325,13 +325,7 @@ export const GroupsShow = () => {
           <CardHeader>
             <FlexBox>
               <CardTitle>Przypisane kursy</CardTitle>
-              <Button
-                size="sm"
-                onClick={() => navigate(`/teacher/groups/${id}/assign-courses`)}
-              >
-                <Plus className="w-4 h-4 mr-2" />
-                Przypisz kurs
-              </Button>
+             
             </FlexBox>
           </CardHeader>
           <CardContent>

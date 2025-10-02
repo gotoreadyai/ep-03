@@ -87,11 +87,6 @@ export const GroupsList = () => {
     }
   };
 
-  const navigateToAssignCourses = (groupId: number, e?: React.MouseEvent) => {
-    e?.stopPropagation();
-    navigate(`/teacher/groups/${groupId}/assign-courses`);
-  };
-
   const navigateToAssignStudents = (groupId: number, e?: React.MouseEvent) => {
     e?.stopPropagation();
     navigate(`/teacher/groups/${groupId}/assign-students`);
@@ -202,13 +197,7 @@ export const GroupsList = () => {
                           <UserPlus className="mr-2 h-4 w-4" />
                           Dodaj uczniów
                         </DropdownMenuItem>
-                        <DropdownMenuItem 
-                          onClick={(e) => navigateToAssignCourses(group.id, e)}
-                          className="text-green-600 focus:text-green-600"
-                        >
-                          <BookOpen className="mr-2 h-4 w-4" />
-                          Przypisz kursy
-                        </DropdownMenuItem>
+                        
                         <DropdownMenuSeparator />
                         <DropdownMenuItem 
                           onClick={() => handleDelete(group.id, group.name)}
@@ -274,16 +263,7 @@ export const GroupsList = () => {
                             <UserPlus className="h-4 w-4" />
                           </Button>
                         )}
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          className="h-8 px-2 quick-action text-green-600 hover:text-green-700 hover:bg-green-50"
-                          onClick={(e) => navigateToAssignCourses(group.id, e)}
-                          title="Przypisz kursy"
-                        >
-                          <BookOpen className="h-4 w-4" />
-                          <ArrowRight className="h-3 w-3 ml-1" />
-                        </Button>
+                        
                       </div>
                     </div>
                   </div>

@@ -162,7 +162,7 @@ export const TopicsList = () => {
                 <SelectValue placeholder="Filtruj po kursie" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">Wszystkie kursy</SelectItem>
+                <SelectItem value="all">Filtrowanie: Wszystkie kursy</SelectItem>
                 <DropdownMenuSeparator />
                 {courses.map((course) => (
                   <SelectItem key={course.id} value={course.id.toString()}>

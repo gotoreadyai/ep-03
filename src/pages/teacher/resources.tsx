@@ -47,14 +47,7 @@ export const teacherResources: IResourceItem[] = [
       label: "Kursy",
     },
   },
-  {
-    ...topicsResource,
-    meta: {
-      ...topicsResource.meta,
-      parent: "dashboard",
-      label: "Tematy",
-    },
-  },
+  
   {
     ...activitiesResource,
     meta: {
