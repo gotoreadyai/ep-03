@@ -13,7 +13,7 @@ export const GroupCoursesInfoCard = () => {
               <BookOpen className="w-6 h-6 text-secondary-foreground" />
             </div>
             <div className="text-center">
-              <p className="text-xs font-bold text-secondary uppercase tracking-wide">Dostęp</p>
+              <p className="text-xs font-bold text-secondary uppercase tracking-wide">Uczeń</p>
             </div>
           </div>
 
