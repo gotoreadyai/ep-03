@@ -13,7 +13,7 @@ export const TeacherCoursesInfoCard = () => {
               <UserCog className="w-6 h-6 text-accent-foreground" />
             </div>
             <div className="text-center">
-              <p className="text-xs font-bold text-accent uppercase tracking-wide">Nauczyciel</p>
+              <p className="text-xs font-bold text-accent uppercase tracking-wide">Kurs</p>
             </div>
           </div>
 
