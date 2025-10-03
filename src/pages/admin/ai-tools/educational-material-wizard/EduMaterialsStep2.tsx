@@ -39,6 +39,12 @@ const MATERIAL_SCHEMA = {
     title: { type: "string", required: true },
     duration_min: { type: "number" },
     content_markdown: { type: "string", required: true },
+    section_count: { 
+      type: "number",
+      minimum: 6,
+      maximum: 6,
+      description: "Must have exactly 6 H2 sections"
+    }
   },
 };
 
@@ -71,6 +77,27 @@ const AGE_GROUP_HINTS: Record<string, string> = {
     "uczniowie 16-19 lat - mogą zrozumieć abstrakcje, zainteresowani praktycznymi zastosowaniami i karierą",
 };
 
+// Walidacja struktury materiału
+const validateMaterialStructure = (markdown: string) => {
+  // Policz sekcje H2
+  const h2Sections = markdown.match(/^##\s+[^#]/gm);
+  if (!h2Sections || h2Sections.length !== 6) {
+    throw new Error(`Nieprawidłowa struktura: znaleziono ${h2Sections?.length || 0} sekcji, wymagane 6`);
+  }
+  
+  // Sprawdź czy nie ma H1
+  if (/^#\s+[^#]/m.test(markdown)) {
+    throw new Error('Materiał zawiera niedozwolone nagłówki H1');
+  }
+  
+  // Sprawdź czy nie ma quizów
+  if (/```quiz/i.test(markdown)) {
+    throw new Error('Materiał zawiera bloki quiz - usuń je, quizy dodaje się w Step 4');
+  }
+  
+  return true;
+};
+
 export function EduMaterialsStep2() {
   const { getStepData, setStepData } = useStepStore();
   const navigate = useNavigate();
@@ -85,7 +112,6 @@ export function EduMaterialsStep2() {
     defaultDuration?: number;
     style?: "notebook" | "exam" | "concise";
     tone?: "neutral" | "friendly" | "formal";
-    includeExercises?: boolean;
   };
 
   const courseId = step1?.courseId;
@@ -94,8 +120,6 @@ export function EduMaterialsStep2() {
   const [item, setItem] = useState<Generated | null>(null);
   const [generating, setGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  // 🔽 NOWE: szczegóły błędu + toggle
   const [errorDetails, setErrorDetails] = useState<any | null>(null);
   const [showErrorDetails, setShowErrorDetails] = useState<boolean>(false);
 
@@ -145,7 +169,7 @@ export function EduMaterialsStep2() {
   const handleGenerate = async () => {
     if (!topic || topicIdNum == null) return;
     setError(null);
-    setErrorDetails(null); // reset szczegółów
+    setErrorDetails(null);
     setShowErrorDetails(false);
     setGenerating(true);
     setStepData("em_step2", { isGenerating: true });
@@ -175,6 +199,13 @@ KONTEKST:
 
 ${curriculumBlock}
 
+KRYTYCZNA ZASADA STRUKTURY:
+- Używaj WYŁĄCZNIE nagłówków poziomu 2 (##) dla głównych sekcji
+- NIE używaj # (H1) - tytuł materiału jest osobno
+- Możesz używać ### (H3) i #### (H4) WEWNĄTRZ sekcji dla podpodziałów
+- Każda główna sekcja MUSI zaczynać się od ##
+- NIE dodawaj bloków \`\`\`quiz - pytania kontrolne są dodawane osobno w Step 4
+
 WYMAGANIA PEDAGOGICZNE:
 1. Język: ${step1.level === "podstawowy" ? "prosty, bezpośredni, z analogiami do życia codziennego" : "precyzyjny z terminologią fachową, ale wciąż przystępny"}
 2. Ton: ${
@@ -186,14 +217,7 @@ WYMAGANIA PEDAGOGICZNE:
     }
 3. Przedmiot: ${subjectHint}
 
-STRUKTURA MATERIAŁU (zachowaj dokładnie tę kolejność):
-
-# [Tytuł z elementem przyciągającym uwagę - użyj kreatywnego sformułowania]
-
-[Akapit wprowadzający - 2-3 zdania ${
-      step1.tone === "friendly" ? "entuzjastyczne" : "profesjonalne"
-    }, 
-wyjaśnij dlaczego ten temat jest ważny/ciekawy/przydatny]
+OBOWIĄZKOWA STRUKTURA (dokładnie w tej kolejności, używając ##):
 
 ## 🎯 Cele lekcji
 Po tej lekcji będziesz:
@@ -243,8 +267,6 @@ ${
 | [Nagłówek 1] | [Nagłówek 2] | [Nagłówek 3] |
 |--------------|--------------|--------------|
 | [Przykład] | [Przykład] | [Przykład] |
-| [Przykład] | [Przykład] | [Przykład] |
-| [Przykład] | [Przykład] | [Przykład] |
 `
     : ""
 }
@@ -266,26 +288,7 @@ ${
 ❌ **Błąd:** [Opis typowego błędu uczniów]
 ✅ **Poprawnie:** [Jak zrobić to dobrze z wyjaśnieniem dlaczego]
 
-${
-  step1.includeExercises
-    ? `
-## 🏋️ Ćwiczenia do samodzielnej pracy
-
-### 🟢 Rozgrzewka (poziom podstawowy)
-1. [Proste ćwiczenie na zrozumienie definicji]
-2. [Ćwiczenie na rozpoznawanie]
-
-### 🟡 Trening (poziom średni)  
-3. [Zadanie wymagające zastosowania wiedzy]
-4. [Zadanie łączące różne elementy tematu]
-
-### 🔴 Wyzwanie (poziom zaawansowany)
-5. [Zadanie problemowe lub kreatywne wymagające myślenia]
-
-💡 **Wskazówka do zadania 5:** [Podpowiedź nie zdradzająca rozwiązania]
-`
-    : ""
-}
+[Powtórz dla 2-3 najczęstszych błędów]
 
 ## 📝 Podsumowanie
 
@@ -317,15 +320,39 @@ DODATKOWE WYTYCZNE:
 - Twórz listy dla przejrzystości
 - Dodawaj tabele gdzie zwiększają zrozumienie
 - Przykłady kodu/wzorów/równań w blokach \`\`\`
-- Proporcje: 40% wyjaśnienia, 40% przykłady, 20% ćwiczenia
+- Proporcje: 50% wyjaśnienia, 30% przykłady, 20% podsumowanie
 - Długość: 800-1200 słów
 - Unikaj ściany tekstu - używaj akapitów, list, tabel
+- NIE dodawaj bloków \`\`\`quiz ani ćwiczeń - pytania kontrolne będą w Step 4
+
+WALIDACJA STRUKTURY:
+- Materiał MUSI mieć dokładnie 6 sekcji na poziomie ## (Cele, Pojęcia, Omówienie, Przykłady, Błędy, Podsumowanie)
+- Każda sekcja MUSI zaczynać się od ##
+- Wewnątrz sekcji możesz używać ###, ####
+- NIE używaj # (H1) w treści
+
+PRZYKŁAD BŁĘDNY ❌:
+# Główny tytuł
+### Podsekcja bez ## przed
+## Sekcja
+
+PRZYKŁAD POPRAWNY ✅:
+## 🎯 Cele lekcji
+Treść...
+
+## 📚 Kluczowe pojęcia
+### Podsekcja wewnątrz (to jest OK)
+Treść...
 
 Generuj materiał w czystym Markdown. Bądź konkretny, praktyczny i angażujący dla grupy wiekowej ${ageHint}.
     `.trim();
 
     try {
       const out = await callLLM(prompt, MATERIAL_SCHEMA);
+      
+      // Walidacja struktury
+      validateMaterialStructure(out.content_markdown);
+      
       const generated: Generated = {
         topic_id: topicIdNum,
         position: topicPosNum,
@@ -335,7 +362,6 @@ Generuj materiał w czystym Markdown. Bądź konkretny, praktyczny i angażując
       };
       setItem(generated);
     } catch (e: any) {
-      // Lepsza obsługa: komunikat + szczegóły (JSON)
       const msg =
         e?.message?.toString()?.includes("503") || e?.details?.toString()?.includes?.("503")
           ? "Błąd komunikacji z Gemini"
@@ -398,13 +424,14 @@ Generuj materiał w czystym Markdown. Bądź konkretny, praktyczny i angażując
             <Alert>
               <BookOpen className="h-4 w-4" />
               <AlertDescription className="text-xs">
+                <strong>Struktura:</strong> 6 głównych sekcji (##)<br />
                 <strong>Styl:</strong>{" "}
                 {step1.style === "notebook" ? "Notatka z lekcji" : step1.style === "exam" ? "Przygotowanie do egzaminu" : "Zwięzły"}
                 <br />
                 <strong>Ton:</strong>{" "}
                 {step1.tone === "friendly" ? "Przyjazny" : step1.tone === "formal" ? "Formalny" : "Neutralny"}
                 <br />
-                <strong>Ćwiczenia:</strong> {step1.includeExercises ? "Tak (3 poziomy trudności)" : "Nie"}
+                <strong>Pytania kontrolne:</strong> Dodasz w kroku 4
               </AlertDescription>
             </Alert>
 
@@ -532,6 +559,7 @@ Generuj materiał w czystym Markdown. Bądź konkretny, praktyczny i angażując
                     <div className="text-xs text-muted-foreground flex items-center gap-3 mt-2">
                       <span>⏱️ {item.duration_min ?? 20} min</span>
                       <span>📝 {item.content_markdown.length} znaków</span>
+                      <span>📄 6 sekcji</span>
                     </div>
                   </CardContent>
                 </Card>

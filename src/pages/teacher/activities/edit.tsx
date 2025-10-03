@@ -1,8 +1,9 @@
+// src/pages/teacher/activities/edit.tsx
 import { useForm } from "@refinedev/react-hook-form";
 import { useNavigation, useOne } from "@refinedev/core";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { FileText, HelpCircle, ListChecks } from "lucide-react";
-import { Button, Input, Textarea, Switch, Badge } from "@/components/ui";
+import { Button, Input, Switch, Badge } from "@/components/ui";
 import {
   Select,
   SelectContent,
@@ -14,6 +15,7 @@ import { FlexBox, GridBox } from "@/components/shared";
 import { Lead } from "@/components/reader";
 import { Form, FormActions, FormControl } from "@/components/form";
 import { SubPage } from "@/components/layout";
+import { MaterialSectionEditor } from "./components/MaterialSectionEditor";
 
 import { useParams, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
@@ -48,7 +50,6 @@ export const ActivitiesEdit = () => {
     },
   });
 
-  // Pobierz liczbę pytań osobno
   const { data: questionsCount } = useOne({
     resource: "questions",
     id: id as string,
@@ -82,13 +83,11 @@ export const ActivitiesEdit = () => {
 
         toast.success("Aktywność została zaktualizowana");
 
-        // Sprawdź czy mamy zapisany URL powrotu
         const returnUrl = sessionStorage.getItem("returnUrl");
         if (returnUrl) {
           sessionStorage.removeItem("returnUrl");
           navigate(returnUrl);
         } else if (courseId) {
-          // Fallback - wróć do kursu z rozwinietym tematem
           navigate(`/teacher/courses/show/${courseId}?expanded=${topicId}`);
         } else {
           list("activities");
@@ -97,7 +96,6 @@ export const ActivitiesEdit = () => {
       onMutationError: (error: any) => {
         console.error("Błąd podczas aktualizacji:", error);
         
-        // Obsługa błędów
         if (error?.code === "PGRST204") {
           toast.error("Błąd konfiguracji - skontaktuj się z administratorem");
         } else if (error?.code === "23505") {
@@ -113,10 +111,8 @@ export const ActivitiesEdit = () => {
     },
   });
 
-  // Ustaw wartości formularza gdy dane się załadują
   useEffect(() => {
     if (data?.data) {
-      // Wyczyść dane z niepotrzebnych pól
       const { topics, _count, questions, ...activityData } = data.data;
       reset(activityData);
     }
@@ -141,13 +137,11 @@ export const ActivitiesEdit = () => {
   const topicId = activity?.topic_id;
 
   const handleCancel = () => {
-    // Sprawdź czy mamy zapisany URL powrotu
     const returnUrl = sessionStorage.getItem("returnUrl");
     if (returnUrl) {
       sessionStorage.removeItem("returnUrl");
       navigate(returnUrl);
     } else if (courseId) {
-      // Fallback - wróć do kursu z rozwinietym tematem
       navigate(`/teacher/courses/show/${courseId}?expanded=${topicId}`);
     } else {
       list("activities");
@@ -163,13 +157,11 @@ export const ActivitiesEdit = () => {
   };
 
   const handleManageQuestions = () => {
-    // Zapisz obecny URL przed przejściem do pytań
     const currentUrl = window.location.pathname + window.location.search;
     sessionStorage.setItem('returnUrl', currentUrl);
     navigate(`/teacher/questions/manage/${activity?.id}`);
   };
 
-  // Oblicz liczbę pytań z różnych możliwych formatów
   const numberOfQuestions = questionsCount?.data?.[0]?.count || 0;
 
   return (
@@ -185,12 +177,12 @@ export const ActivitiesEdit = () => {
             </div>
           }
           description={
-            <div>
-              <div className="text-lg font-medium">{activity?.title}</div>
-              <div className="text-sm text-muted-foreground">
+            <>
+              <span className="block text-lg font-medium">{activity?.title}</span>
+              <span className="block text-sm text-muted-foreground">
                 {course?.title} → Temat {topic?.position}: {topic?.title}
-              </div>
-            </div>
+              </span>
+            </>
           }
         />
         {activityType === "quiz" && (
@@ -306,25 +298,33 @@ export const ActivitiesEdit = () => {
             </GridBox>
 
             {activityType === "material" && (
-              <FormControl
-                label="Treść materiału"
-                htmlFor="content"
-                error={errors.content?.message as string}
-                required
-                hint="Możesz używać formatowania Markdown"
-              >
-                <Textarea
-                  id="content"
-                  placeholder="Wprowadź treść materiału..."
-                  rows={10}
-                  {...register("content", {
-                    required:
-                      activityType === "material"
-                        ? "Treść jest wymagana dla materiału"
-                        : false,
-                  })}
+              <>
+                <MaterialSectionEditor
+                  value={watch("content") || ""}
+                  onChange={(value) => setValue("content", value)}
+                  label="Treść materiału"
+                  error={errors.content?.message as string}
+                  required
+                  hint="Edytuj każdą sekcję osobno. Struktura: 6 głównych sekcji. Pytania kontrolne dodajesz przez generator (krok 4)."
                 />
-              </FormControl>
+                
+                <Card className="bg-blue-50 dark:bg-blue-950/30 border-blue-200 dark:border-blue-800">
+                  <CardContent className="pt-6">
+                    <p className="text-sm">
+                      <strong className="text-blue-700 dark:text-blue-300">
+                        Struktura materiału:
+                      </strong>
+                    </p>
+                    <ul className="text-sm text-blue-600 dark:text-blue-400 mt-2 ml-4 space-y-1">
+                      <li>6 głównych sekcji: Cele → Pojęcia → Omówienie → Przykłady → Błędy → Podsumowanie</li>
+                      <li>Każda sekcja ma własny edytor (rozwiń/zwiń strzałką)</li>
+                      <li>Przycisk oka - podgląd, przycisk kodu - edycja</li>
+                      <li>Pytania kontrolne (```quiz) dodajesz przez generator w kroku 4</li>
+                      <li>Uczeń musi odpowiedzieć poprawnie aby odhaczyć sekcję</li>
+                    </ul>
+                  </CardContent>
+                </Card>
+              </>
             )}
 
             {activityType === "quiz" && (
@@ -405,6 +405,8 @@ export const ActivitiesEdit = () => {
                             Ten quiz zawiera {numberOfQuestions}{" "}
                             {numberOfQuestions === 1
                               ? "pytanie"
+                              : numberOfQuestions < 5
+                              ? "pytania" 
                               : "pytań"}
                           </p>
                           <p className="text-sm text-muted-foreground mt-1">

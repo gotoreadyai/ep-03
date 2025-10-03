@@ -1,8 +1,9 @@
+// src/pages/teacher/activities/create.tsx
 import { useForm } from "@refinedev/react-hook-form";
 import { useNavigation, useOne, useList } from "@refinedev/core";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { FileText, HelpCircle } from "lucide-react";
-import { Button, Input, Textarea, Switch } from "@/components/ui";
+import { Button, Input, Switch } from "@/components/ui";
 import {
   Select,
   SelectContent,
@@ -14,6 +15,7 @@ import { FlexBox, GridBox } from "@/components/shared";
 import { Lead } from "@/components/reader";
 import { Form, FormActions, FormControl } from "@/components/form";
 import { SubPage } from "@/components/layout";
+import { MaterialSectionEditor } from "./components/MaterialSectionEditor";
 
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { useEffect } from "react";
@@ -40,7 +42,6 @@ export const ActivitiesCreate = () => {
   const [searchParams] = useSearchParams();
   const topicId = searchParams.get("topic_id");
 
-  // Pobierz dane tematu
   const { data: topicData } = useOne({
     resource: "topics",
     id: topicId as string,
@@ -52,7 +53,6 @@ export const ActivitiesCreate = () => {
     },
   });
 
-  // Pobierz ostatnią pozycję
   const { data: activitiesData, isLoading: positionLoading } = useList({
     resource: "activities",
     filters: [
@@ -101,17 +101,14 @@ export const ActivitiesCreate = () => {
         toast.success("Aktywność została utworzona");
 
         if (activityType === "quiz") {
-          // Dla quizu przekieruj do zarządzania pytaniami
           toast.info("Dodaj pytania do quizu");
           navigate(`/teacher/questions/manage/${data.data.id}`);
         } else {
-          // Sprawdź czy mamy zapisany URL powrotu
           const returnUrl = sessionStorage.getItem("returnUrl");
           if (returnUrl) {
             sessionStorage.removeItem("returnUrl");
             navigate(returnUrl);
           } else if (courseId) {
-            // Fallback - wróć do kursu z rozwinietym tematem
             navigate(`/teacher/courses/show/${courseId}?expanded=${topicId}`);
           } else {
             navigate("/teacher/courses");
@@ -123,7 +120,6 @@ export const ActivitiesCreate = () => {
 
   const activityType = watch("type");
 
-  // Ustaw pozycję gdy dane się załadują
   useEffect(() => {
     if (!positionLoading && activitiesData && activitiesData.data.length > 0) {
       const nextPosition = activitiesData.data[0].position + 1;
@@ -132,20 +128,16 @@ export const ActivitiesCreate = () => {
   }, [activitiesData, positionLoading, setValue]);
 
   const handleCancel = () => {
-    // Sprawdź czy mamy zapisany URL powrotu
     const returnUrl = sessionStorage.getItem("returnUrl");
     if (returnUrl) {
       sessionStorage.removeItem("returnUrl");
       navigate(returnUrl);
     } else if (topicData?.data?.course_id) {
-      // Fallback - wróć do kursu z rozwinietym tematem
-      navigate(`/courses/show/${topicData.data.course_id}?expanded=${topicId}`);
+      navigate(`/teacher/courses/show/${topicData.data.course_id}?expanded=${topicId}`);
     } else {
-      navigate("/courses");
+      navigate("/teacher/courses");
     }
   };
-
-  const courseId = topicData?.data?.course_id;
 
   if (!topicId) {
     return (
@@ -155,7 +147,7 @@ export const ActivitiesCreate = () => {
             <p className="text-lg font-medium text-muted-foreground mb-4">
               Nie wybrano tematu
             </p>
-            <Button onClick={() => navigate("/courses")}>
+            <Button onClick={() => navigate("/teacher/courses")}>
               Przejdź do kursów
             </Button>
           </CardContent>
@@ -173,12 +165,12 @@ export const ActivitiesCreate = () => {
           title="Dodaj aktywność"
           description={
             topicData?.data ? (
-              <div>
-                <div className="text-lg">{topicData.data.courses?.title}</div>
-                <div className="text-sm text-muted-foreground">
+              <>
+                <span className="block text-lg">{topicData.data.courses?.title}</span>
+                <span className="block text-sm text-muted-foreground">
                   Temat {topicData.data.position}: {topicData.data.title}
-                </div>
-              </div>
+                </span>
+              </>
             ) : (
               "Utwórz nowy materiał lub quiz"
             )
@@ -292,25 +284,33 @@ export const ActivitiesCreate = () => {
             </GridBox>
 
             {activityType === "material" && (
-              <FormControl
-                label="Treść materiału"
-                htmlFor="content"
-                error={errors.content?.message as string}
-                required
-                hint="Możesz używać formatowania Markdown"
-              >
-                <Textarea
-                  id="content"
-                  placeholder="Wprowadź treść materiału edukacyjnego..."
-                  rows={10}
-                  {...register("content", {
-                    required:
-                      activityType === "material"
-                        ? "Treść jest wymagana dla materiału"
-                        : false,
-                  })}
+              <>
+                <MaterialSectionEditor
+                  value={watch("content") || ""}
+                  onChange={(value) => setValue("content", value)}
+                  label="Treść materiału"
+                  error={errors.content?.message as string}
+                  required
+                  hint="Edytuj każdą sekcję osobno. Kliknij ikonę oka aby zobaczyć podgląd, kliknij kod aby wrócić do edycji."
                 />
-              </FormControl>
+                
+                <Card className="bg-blue-50 dark:bg-blue-950/30 border-blue-200 dark:border-blue-800">
+                  <CardContent className="pt-6">
+                    <p className="text-sm">
+                      <strong className="text-blue-700 dark:text-blue-300">
+                        Wskazówka dla nauczycieli:
+                      </strong>
+                    </p>
+                    <ul className="text-sm text-blue-600 dark:text-blue-400 mt-2 ml-4 space-y-1">
+                      <li>Materiał składa się z 6 sekcji</li>
+                      <li>Każda sekcja ma własny edytor - rozwiń/zwiń przyciskiem strzałki</li>
+                      <li>Używaj Markdown: **pogrubienie**, *kursywa*, listy, tabele</li>
+                      <li>Pytania kontrolne dodajesz przez generator (krok 4) w formacie ```quiz</li>
+                      <li>Uczniowie muszą odpowiedzieć na pytania aby odhaczyć sekcję</li>
+                    </ul>
+                  </CardContent>
+                </Card>
+              </>
             )}
 
             {activityType === "quiz" && (
@@ -385,7 +385,7 @@ export const ActivitiesCreate = () => {
                 <div className="mt-4 p-4 bg-blue-50 dark:bg-blue-950 rounded-lg border border-blue-200 dark:border-blue-800">
                   <p className="text-sm">
                     <strong className="text-blue-700 dark:text-blue-300">
-                      💡 Wskazówka:
+                      Wskazówka:
                     </strong>{" "}
                     <span className="text-blue-600 dark:text-blue-400">
                       Po utworzeniu quizu zostaniesz przekierowany do ekranu

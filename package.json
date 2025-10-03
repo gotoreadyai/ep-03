@@ -36,6 +36,7 @@
     "date-fns": "^4.1.0",
     "framer-motion": "^12.23.12",
     "lucide-react": "^0.516.0",
+    "prop-types": "^15.8.1",
     "react": "^18.0.0",
     "react-day-picker": "^9.7.0",
     "react-dom": "^18.0.0",
@@ -55,6 +56,7 @@
   "devDependencies": {
     "@tailwindcss/postcss": "^4.1.10",
     "@tailwindcss/typography": "^0.5.16",
+    "@types/markdown-it": "^14.1.2",
     "@types/node": "^18.19.112",
     "@types/react": "^18.0.0",
     "@types/react-dom": "^18.0.0",

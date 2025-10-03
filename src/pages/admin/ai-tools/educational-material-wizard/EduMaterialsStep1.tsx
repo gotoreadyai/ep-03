@@ -39,7 +39,6 @@ type StepData = {
   defaultDuration?: number;
   style?: "notebook" | "exam" | "concise";
   tone?: "neutral" | "friendly" | "formal";
-  includeExercises?: boolean;
 };
 
 type Material = {
@@ -65,7 +64,6 @@ const SCHEMA = {
     defaultDuration: { type: "number" },
     style: { type: "string" },
     tone: { type: "string" },
-    includeExercises: { type: "boolean" },
   },
 };
 
@@ -92,7 +90,6 @@ export function EduMaterialsStep1() {
         alignToCurriculum: true,
         style: "notebook",
         tone: "friendly",
-        includeExercises: true,
         defaultDuration: 20,
       });
     }
@@ -115,7 +112,7 @@ export function EduMaterialsStep1() {
     queryOptions: { enabled: !!data.courseId },
   });
 
-  // Aktywności (materiały) w kursie — teraz z pełnymi danymi dla podglądu
+  // Aktywności (materiały) w kursie
   const topicIds = useMemo(() => (topicsData?.data || []).map((t: any) => t.id), [topicsData?.data]);
 
   const { data: activitiesData } = useList<Material>({
@@ -133,7 +130,7 @@ export function EduMaterialsStep1() {
     queryOptions: { enabled: topicIds.length > 0 },
   });
 
-  // Materiały per temat - teraz z pełnymi obiektami
+  // Materiały per temat
   const materialsByTopic = useMemo(() => {
     const map: Record<number, { count: number; materials: Material[] }> = {};
     if (activitiesData?.data) {
@@ -249,7 +246,6 @@ export function EduMaterialsStep1() {
                               )}
                             </div>
 
-                            {/* Pokaż materiały TYLKO dla zaznaczonego tematu */}
                             {selected && (
                               <div className="mt-2 ml-7">
                                 {materials?.count > 0 ? (
@@ -389,11 +385,6 @@ export function EduMaterialsStep1() {
                 value={data.defaultDuration ?? 20}
                 onChange={(e) => setStepData("em_step1", { defaultDuration: Number(e.target.value) })}
               />
-            </div>
-
-            <div className="flex items-center gap-2">
-              <Checkbox checked={data.includeExercises ?? true} onCheckedChange={(v) => setStepData("em_step1", { includeExercises: Boolean(v) })} />
-              <span className="text-sm">Dodaj mini-ćwiczenia na końcu</span>
             </div>
 
             {data.isMaturaCourse && data.alignToCurriculum && latestCurriculum && (

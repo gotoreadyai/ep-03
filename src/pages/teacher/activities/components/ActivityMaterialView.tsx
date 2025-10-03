@@ -2,6 +2,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { FileText } from "lucide-react";
 import { MaterialContentRenderer } from "./MaterialContentRenderer";
+import { ActivityInfoPanel } from "./ActivityInfoPanel";
 
 interface ActivityMaterialViewProps {
   activity: {
@@ -45,16 +46,11 @@ export const ActivityMaterialView = ({ activity }: ActivityMaterialViewProps) =>
           <CardTitle className="text-base">Informacje</CardTitle>
         </CardHeader>
         <CardContent>
-          <MaterialContentRenderer
-            content=""
-            metadata={{
-              duration_min: activity.duration_min,
-              position: activity.position,
-              created_at: activity.created_at,
-              updated_at: activity.updated_at
-            }}
-            showMetadata={true}
-            height="0px"
+          <ActivityInfoPanel
+            duration_min={activity.duration_min}
+            position={activity.position}
+            created_at={activity.created_at}
+            updated_at={activity.updated_at}
           />
         </CardContent>
       </Card>

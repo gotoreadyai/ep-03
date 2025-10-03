@@ -23,7 +23,7 @@ export function EduMaterialsDashboard() {
           <div className="flex-1">
             <h1 className="text-xl sm:text-2xl font-semibold leading-tight">Kreator materiałów</h1>
             <p className="text-sm text-zinc-600">
-              Wygeneruj treść lekcji (Markdown) dla jednego, wskazanego tematu — z opisem, przykładami i zadaniami.
+              Wygeneruj treść lekcji (Markdown) dla jednego, wskazanego tematu — z opisem, przykładami i podsumowaniem.
             </p>
           </div>
           <div className="hidden md:block">
@@ -51,6 +51,7 @@ export function EduMaterialsDashboard() {
               <li>Ustaw parametry (poziom, styl, długość, zgodność z podstawą).</li>
               <li>Wygeneruj pojedynczy materiał.</li>
               <li>Zapisz jako aktywność typu <code>material</code>.</li>
+              <li>Opcjonalnie dodaj pytania kontrolne w kroku 4.</li>
             </ol>
             <Button asChild className="w-full">
               <Link to="/admin/educational-material/step1" className="inline-flex items-center gap-2">
@@ -69,24 +70,27 @@ export function EduMaterialsDashboard() {
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-3 text-sm text-muted-foreground">
-            <p>Struktura: krótki wstęp → wyjaśnienia → przykłady → mini-ćwiczenia → podsumowanie.</p>
+            <p>
+              Struktura: 6 głównych sekcji (Cele → Pojęcia → Omówienie → Przykłady → Błędy → Podsumowanie)
+            </p>
             <p>Format: czysty Markdown (obsługujesz już w widoku materiału).</p>
             <Alert>
               <Info className="h-4 w-4" />
               <AlertDescription className="text-xs">
                 Jeśli kurs jest maturalny i włączysz zgodność z podstawą LO (2025), kreator
                 dopasuje treści do wymagań z pliku <code>curriculum.ts</code>.
+                Pytania kontrolne dodajesz opcjonalnie w kroku 4.
               </AlertDescription>
             </Alert>
           </CardContent>
         </Card>
 
-        {/* Nowa karta - dodawanie pytań kontrolnych */}
+        {/* Karta - dodawanie pytań kontrolnych */}
         <Card className="lg:col-span-2">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <HelpCircle className="w-5 h-5" />
-              Dodawanie pytań kontrolnych (opcjonalne)
+              Dodawanie pytań kontrolnych (opcjonalne - krok 4)
             </CardTitle>
           </CardHeader>
           <CardContent>
