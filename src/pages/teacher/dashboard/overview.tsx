@@ -1,247 +1,212 @@
-import { useGetIdentity } from "@refinedev/core";
+// src/pages/teacher/dashboard/overview.tsx
+import { useGetIdentity, useList } from "@refinedev/core";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { 
   Users, 
   BookOpen, 
-  Trophy, 
-  TrendingUp,
-  Clock,
-  Award,
-  Activity,
-  Target
+  GraduationCap,
+  ArrowRight,
+  Plus
 } from "lucide-react";
-import { FlexBox, GridBox } from "@/components/shared";
+import { GridBox } from "@/components/shared";
 import { Lead } from "@/components/reader";
-import { SubPage } from "@/components/layout"; // Dodaj import jeśli brakuje
-
-import { useEffect, useState } from "react";
-import { supabaseClient } from "@/utility/supabaseClient";
-
-interface DashboardStats {
-  totalUsers: number;
-  activeUsers: number;
-  totalCourses: number;
-  publishedCourses: number;
-  totalActivities: number;
-  completedActivities: number;
-  averageScore: number;
-  totalPoints: number;
-}
+import { SubPage } from "@/components/layout";
+import { Button } from "@/components/ui";
+import { useNavigate } from "react-router-dom";
 
 export const DashboardOverview = () => {
-  const { data: identity, isLoading: identityLoading } = useGetIdentity<any>();
-  const [stats, setStats] = useState<DashboardStats | null>(null);
-  const [loading, setLoading] = useState(true);
+  const { data: identity } = useGetIdentity<any>();
+  const navigate = useNavigate();
 
-  useEffect(() => {
-    // WAŻNE: Dodaj warunek aby uniknąć wielokrotnych wywołań
-    if (identityLoading || !identity?.vendor_id) {
-      setLoading(false);
-      return;
-    }
+  // Tylko 3 proste zapytania z count
+  const { data: groupsData } = useList({
+    resource: "groups",
+    filters: [
+      { field: "vendor_id", operator: "eq", value: identity?.vendor_id }
+    ],
+    pagination: { current: 1, pageSize: 5 },
+  });
 
-    let isMounted = true; // Flaga do anulowania efektów po odmontowaniu
+  const { data: coursesData } = useList({
+    resource: "courses",
+    filters: [
+      { field: "vendor_id", operator: "eq", value: identity?.vendor_id }
+    ],
+    pagination: { current: 1, pageSize: 5 },
+  });
 
-    const fetchStats = async () => {
-      try {
-        // Pobierz statystyki
-        const [
-          usersRes,
-          coursesRes,
-          activitiesRes,
-          progressRes,
-          pointsRes
-        ] = await Promise.all([
-          // Użytkownicy
-          supabaseClient
-            .from('users')
-            .select('*', { count: 'exact', head: true })
-            .eq('vendor_id', identity.vendor_id),
-          
-          // Kursy
-          supabaseClient
-            .from('courses')
-            .select('*', { count: 'exact' })
-            .eq('vendor_id', identity.vendor_id),
-          
-          // Aktywności
-          supabaseClient
-            .from('activities')
-            .select('*, topics!inner(course_id, courses!inner(vendor_id))', { count: 'exact' })
-            .eq('topics.courses.vendor_id', identity.vendor_id),
-          
-          // Postępy
-          supabaseClient
-            .from('activity_progress')
-            .select('score, completed_at')
-            .not('completed_at', 'is', null),
-          
-          // Punkty
-          supabaseClient
-            .from('user_stats')
-            .select('total_points')
-        ]);
-
-        // Sprawdź czy komponent jest nadal zamontowany
-        if (!isMounted) return;
-
-        const avgScore = progressRes.data?.length 
-          ? progressRes.data.reduce((acc, p) => acc + (p.score || 0), 0) / progressRes.data.length
-          : 0;
-
-        const totalPoints = pointsRes.data?.reduce((acc, p) => acc + p.total_points, 0) || 0;
-
-        setStats({
-          totalUsers: usersRes.count || 0,
-          activeUsers: usersRes.count || 0, // TODO: dodać faktyczną logikę
-          totalCourses: coursesRes.count || 0,
-          publishedCourses: coursesRes.data?.filter(c => c.is_published).length || 0,
-          totalActivities: activitiesRes.count || 0,
-          completedActivities: progressRes.data?.length || 0,
-          averageScore: Math.round(avgScore),
-          totalPoints
-        });
-      } catch (error) {
-        console.error('Error fetching dashboard stats:', error);
-      } finally {
-        if (isMounted) {
-          setLoading(false);
-        }
-      }
-    };
-
-    fetchStats();
-
-    // Cleanup function
-    return () => {
-      isMounted = false;
-    };
-  }, [identity?.vendor_id, identityLoading]); // Bardziej specyficzne zależności
-
-  if (loading || identityLoading) {
-    return (
-      <SubPage>
-        <div className="flex items-center justify-center min-h-[400px]">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-        </div>
-      </SubPage>
-    );
-  }
-
-  // Jeśli nie ma identity, pokaż komunikat
-  if (!identity) {
-    return (
-      <SubPage>
-        <div className="text-center text-muted-foreground">
-          Nie można załadować danych użytkownika
-        </div>
-      </SubPage>
-    );
-  }
+  const { data: studentsData } = useList({
+    resource: "users",
+    filters: [
+      { field: "vendor_id", operator: "eq", value: identity?.vendor_id },
+      { field: "role", operator: "eq", value: "student" }
+    ],
+    pagination: { current: 1, pageSize: 5 },
+  });
 
   return (
     <SubPage>
       <Lead
-        title="Dashboard"
-        description="Przegląd statystyk systemu e-learning"
+        title={`Witaj, ${identity?.full_name || 'Nauczycielu'}!`}
+        description="Szybki przegląd systemu"
       />
 
-      <GridBox variant="1-2-2">
-        {/* Użytkownicy */}
+      {/* Statystyki */}
+      <GridBox variant="1-2-3">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">
-              Użytkownicy
-            </CardTitle>
+            <CardTitle className="text-sm font-medium">Grupy</CardTitle>
             <Users className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{stats?.totalUsers || 0}</div>
-            <p className="text-xs text-muted-foreground">
-              {stats?.activeUsers || 0} aktywnych
-            </p>
+            <div className="text-2xl font-bold">{groupsData?.total || 0}</div>
+            <Button
+              variant="link"
+              size="sm"
+              className="px-0 h-auto text-xs"
+              onClick={() => navigate("/teacher/groups")}
+            >
+              Zarządzaj grupami
+              <ArrowRight className="w-3 h-3 ml-1" />
+            </Button>
           </CardContent>
         </Card>
 
-        {/* Kursy */}
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">
-              Kursy
-            </CardTitle>
+            <CardTitle className="text-sm font-medium">Kursy</CardTitle>
             <BookOpen className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{stats?.totalCourses || 0}</div>
-            <p className="text-xs text-muted-foreground">
-              {stats?.publishedCourses || 0} opublikowanych
-            </p>
+            <div className="text-2xl font-bold">{coursesData?.total || 0}</div>
+            <Button
+              variant="link"
+              size="sm"
+              className="px-0 h-auto text-xs"
+              onClick={() => navigate("/teacher/courses")}
+            >
+              Przeglądaj kursy
+              <ArrowRight className="w-3 h-3 ml-1" />
+            </Button>
           </CardContent>
         </Card>
 
-        {/* Aktywności */}
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">
-              Aktywności
-            </CardTitle>
-            <Activity className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-sm font-medium">Uczniowie</CardTitle>
+            <GraduationCap className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{stats?.totalActivities || 0}</div>
-            <p className="text-xs text-muted-foreground">
-              {stats?.completedActivities || 0} ukończonych
-            </p>
-          </CardContent>
-        </Card>
-
-        {/* Średni wynik */}
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">
-              Średni wynik
-            </CardTitle>
-            <Target className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats?.averageScore || 0}%</div>
-            <p className="text-xs text-muted-foreground">
-              z wszystkich quizów
-            </p>
+            <div className="text-2xl font-bold">{studentsData?.total || 0}</div>
+            <Button
+              variant="link"
+              size="sm"
+              className="px-0 h-auto text-xs"
+              onClick={() => navigate("/teacher/users")}
+            >
+              Zobacz uczniów
+              <ArrowRight className="w-3 h-3 ml-1" />
+            </Button>
           </CardContent>
         </Card>
       </GridBox>
 
-      {/* Wykres aktywności - placeholder */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Aktywność w ostatnich 7 dniach</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="h-[300px] flex items-center justify-center text-muted-foreground">
-            <TrendingUp className="h-8 w-8 mr-2" />
-            Wykres aktywności (do implementacji)
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Najlepsi użytkownicy */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Top 5 użytkowników</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
-            {[1, 2, 3, 4, 5].map((i) => (
-              <div key={i} className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <Trophy className={`h-5 w-5 ${i <= 3 ? 'text-yellow-500' : 'text-muted-foreground'}`} />
-                  <span>Użytkownik {i}</span>
-                </div>
-                <span className="font-semibold">{1000 - i * 100} pkt</span>
+      <GridBox variant="1-2-2">
+        {/* Ostatnie grupy */}
+        {groupsData?.data && groupsData.data.length > 0 && (
+          <Card>
+            <CardHeader>
+              <CardTitle>Twoje grupy</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-2">
+                {groupsData.data.slice(0, 5).map((group: any) => (
+                  <div
+                    key={group.id}
+                    className="flex items-center justify-between p-3 border rounded-lg hover:bg-muted/50 cursor-pointer transition-colors"
+                    onClick={() => navigate(`/teacher/groups/show/${group.id}`)}
+                  >
+                    <div>
+                      <div className="font-medium">{group.name}</div>
+                      <div className="text-sm text-muted-foreground">
+                        {group.academic_year}
+                      </div>
+                    </div>
+                    <ArrowRight className="w-4 h-4 text-muted-foreground" />
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Ostatnie kursy */}
+        {coursesData?.data && coursesData.data.length > 0 && (
+          <Card>
+            <CardHeader>
+              <CardTitle>Twoje kursy</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-2">
+                {coursesData.data.slice(0, 5).map((course: any) => (
+                  <div
+                    key={course.id}
+                    className="flex items-center justify-between p-3 border rounded-lg hover:bg-muted/50 cursor-pointer transition-colors"
+                    onClick={() => navigate(`/teacher/courses/show/${course.id}`)}
+                  >
+                    <div className="flex items-center gap-3">
+                      {course.icon_emoji && (
+                        <span className="text-2xl">{course.icon_emoji}</span>
+                      )}
+                      <div>
+                        <div className="font-medium">{course.title}</div>
+                        <div className="text-sm text-muted-foreground">
+                          {course.is_published ? "Opublikowany" : "Szkic"}
+                        </div>
+                      </div>
+                    </div>
+                    <ArrowRight className="w-4 h-4 text-muted-foreground" />
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        )}
+      </GridBox>
+
+      {/* Szybkie akcje */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Szybkie akcje</CardTitle>
+        </CardHeader>
+        <CardContent className="grid gap-3">
+          <Button
+            variant="outline"
+            className="justify-start h-auto py-3"
+            onClick={() => navigate("/teacher/courses/create")}
+          >
+            <Plus className="w-4 h-4 mr-2" />
+            <div className="text-left">
+              <div className="font-medium">Utwórz nowy kurs</div>
+              <div className="text-xs text-muted-foreground">
+                Dodaj materiały i quizy dla uczniów
+              </div>
+            </div>
+          </Button>
+
+          <Button
+            variant="outline"
+            className="justify-start h-auto py-3"
+            onClick={() => navigate("/teacher/groups/create")}
+          >
+            <Plus className="w-4 h-4 mr-2" />
+            <div className="text-left">
+              <div className="font-medium">Utwórz nową grupę</div>
+              <div className="text-xs text-muted-foreground">
+                Zorganizuj uczniów i przypisz kursy
+              </div>
+            </div>
+          </Button>
         </CardContent>
       </Card>
     </SubPage>
