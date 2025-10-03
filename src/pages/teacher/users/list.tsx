@@ -10,7 +10,8 @@ import {
   Trophy,
   Clock,
   TrendingUp,
-  AlertCircle
+  AlertCircle,
+  BookOpen
 } from "lucide-react";
 import { FlexBox } from "@/components/shared";
 import { Lead } from "@/components/reader";
@@ -25,16 +26,19 @@ import {
 } from "@/components/ui/select";
 import { useState, useEffect, useMemo } from "react";
 import { supabaseClient } from "@/utility";
+import { useNavigate } from "react-router-dom";
 import type { StudentData, TeacherIdentity, Group, GroupMember, UserStats } from '../types';
 
 export const UsersList = () => {
   const { show } = useNavigation();
+  const navigate = useNavigate();
   const { data: identity } = useGetIdentity<TeacherIdentity>();
   const [searchTerm, setSearchTerm] = useState("");
   const [groupFilter, setGroupFilter] = useState<string>("all");
   const [teacherGroups, setTeacherGroups] = useState<Group[]>([]);
   const [students, setStudents] = useState<StudentData[]>([]);
   const [loading, setLoading] = useState(true);
+  const [teacherCourses, setTeacherCourses] = useState<Map<number, number[]>>(new Map());
   
   useEffect(() => {
     const fetchTeacherStudents = async () => {
@@ -65,11 +69,22 @@ export const UsersList = () => {
         // 2. Pobierz grupy które mają dostęp do tych kursów
         const { data: groupAccessData, error: groupAccessError } = await supabaseClient
           .from('course_access')
-          .select('group_id')
+          .select('group_id, course_id')
           .in('course_id', courseIds)
           .not('group_id', 'is', null);
 
         if (groupAccessError) throw groupAccessError;
+
+        // Stwórz mapę grupa -> kursy
+        const groupToCourses = new Map<number, number[]>();
+        groupAccessData?.forEach(ga => {
+          if (ga.group_id) {
+            const courses = groupToCourses.get(ga.group_id) || [];
+            courses.push(ga.course_id);
+            groupToCourses.set(ga.group_id, courses);
+          }
+        });
+        setTeacherCourses(groupToCourses);
 
         const groupIds = [...new Set(groupAccessData?.map(ga => ga.group_id).filter(Boolean) || [])];
 
@@ -134,7 +149,6 @@ export const UsersList = () => {
             joined_at: gm.joined_at,
             groups: gm.groups
           })) || [],
-          // Poprawka: user_stats zwraca obiekt lub tablicę - normalizujemy do tablicy
           user_stats: user.user_stats ? (Array.isArray(user.user_stats) ? user.user_stats : [user.user_stats]) : []
         })) || [];
 
@@ -152,7 +166,6 @@ export const UsersList = () => {
     fetchTeacherStudents();
   }, [identity]);
 
-  // Użyj useMemo dla filtrowania
   const filteredStudents = useMemo(() => {
     return students.filter(student => {
       const matchesSearch = !searchTerm || 
@@ -178,6 +191,13 @@ export const UsersList = () => {
     if (daysSinceActive <= 7) return { color: "text-yellow-600", text: `${daysSinceActive} dni temu` };
     if (daysSinceActive <= 30) return { color: "text-orange-600", text: `${Math.floor(daysSinceActive / 7)} tyg. temu` };
     return { color: "text-red-600", text: "Ponad miesiąc temu" };
+  };
+
+  const getFirstCourseForStudent = (student: StudentData): number | null => {
+    const groupId = student.groups?.[0]?.group_id;
+    if (!groupId) return null;
+    const courses = teacherCourses.get(groupId);
+    return courses?.[0] || null;
   };
 
   if (loading) {
@@ -253,6 +273,8 @@ export const UsersList = () => {
           {filteredStudents.map((student) => {
             const stats: UserStats | undefined = student.user_stats?.[0];
             const activityStatus = getActivityStatus(stats?.last_active);
+            const groupId = student.groups?.[0]?.group_id;
+            const courseId = getFirstCourseForStudent(student);
             
             return (
               <Card key={student.id} className="hover:shadow-md transition-shadow">
@@ -267,13 +289,26 @@ export const UsersList = () => {
                         <p className="text-xs text-muted-foreground">{student.email}</p>
                       </div>
                     </div>
-                    <Button 
-                      variant="ghost" 
-                      size="sm"
-                      onClick={() => show("users", student.id)}
-                    >
-                      <Eye className="h-4 w-4" />
-                    </Button>
+                    <div className="flex gap-1">
+                      <Button 
+                        variant="ghost" 
+                        size="sm"
+                        onClick={() => show("users", student.id)}
+                        title="Zobacz profil"
+                      >
+                        <Eye className="h-4 w-4" />
+                      </Button>
+                      {groupId && courseId && (
+                        <Button 
+                          variant="ghost" 
+                          size="sm"
+                          onClick={() => navigate(`/teacher/groups/${groupId}/courses/${courseId}/students/${student.id}`)}
+                          title="Zobacz szczegóły w kursie"
+                        >
+                          <BookOpen className="h-4 w-4" />
+                        </Button>
+                      )}
+                    </div>
                   </div>
                   
                   <div className="space-y-3">

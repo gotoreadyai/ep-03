@@ -9,21 +9,11 @@
 import type { IResourceItem } from "@refinedev/core";
 import { BookOpen } from "lucide-react";
 import { coursesResource } from "./courses";
-import { topicsResource } from "./topics";
 import { activitiesResource } from "./activities";
 import { groupsResource } from "./groups";
-import { usersResource } from "./users";
 import { groupActivityResource } from "./group-activity";
 import { studentCourseDetailsResource } from "./student-course-details"; // DODANE
 
-import {
-  reportsResource,
-  reportsEngagementResource,
-  reportsProgressResource,
-  reportsPerformanceResource,
-  reportsGamificationResource,
-  reportsSummaryResource,
-} from "./reports";
 
 // Parent resource dla zasobów edukacyjnych
 const educationalResourcesParent: IResourceItem = {
@@ -65,32 +55,32 @@ export const teacherResources: IResourceItem[] = [
   },
 
   // Użytkownicy i organizacje - osobno
-  usersResource,
+  // usersResource,
 
   // Raporty - rodzic widoczny w menu
-  reportsResource,
+  // reportsResource,
   
   // Wszystkie raporty szczegółowe (widoczne w podmenu)
-  {
-    ...reportsEngagementResource,
-    meta: { ...reportsEngagementResource.meta, parent: "reports" },
-  },
-  {
-    ...reportsProgressResource,
-    meta: { ...reportsProgressResource.meta, parent: "reports" },
-  },
-  {
-    ...reportsPerformanceResource,
-    meta: { ...reportsPerformanceResource.meta, parent: "reports" },
-  },
-  {
-    ...reportsGamificationResource,
-    meta: { ...reportsGamificationResource.meta, parent: "reports" },
-  },
-  {
-    ...reportsSummaryResource,
-    meta: { ...reportsSummaryResource.meta, parent: "reports" },
-  },
+  // {
+  //   ...reportsEngagementResource,
+  //   meta: { ...reportsEngagementResource.meta, parent: "reports" },
+  // },
+  // {
+  //   ...reportsProgressResource,
+  //   meta: { ...reportsProgressResource.meta, parent: "reports" },
+  // },
+  // {
+  //   ...reportsPerformanceResource,
+  //   meta: { ...reportsPerformanceResource.meta, parent: "reports" },
+  // },
+  // {
+  //   ...reportsGamificationResource,
+  //   meta: { ...reportsGamificationResource.meta, parent: "reports" },
+  // },
+  // {
+  //   ...reportsSummaryResource,
+  //   meta: { ...reportsSummaryResource.meta, parent: "reports" },
+  // },
 
   // Hidden resources (nie w menu, dostępne przez direct link)
   groupActivityResource,
