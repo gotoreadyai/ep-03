@@ -359,6 +359,7 @@ export const CoursesShow = () => {
                   key={group.id}
                   group={group}
                   membersCount={getMembersCountForGroup(group.id)}
+                  courseId={Number(id)} 
                 />
               ))}
             </div>

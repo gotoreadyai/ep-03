@@ -8,7 +8,6 @@ import { Route, Routes, Outlet, Navigate } from "react-router-dom";
 import { Authenticated, useGetIdentity } from "@refinedev/core";
 import { CatchAllNavigate } from "@refinedev/react-router";
 
-
 import { TeacherLayout } from "./TeacherLayout";
 
 import { dashboardRoutes } from "./dashboard";
@@ -17,26 +16,22 @@ import { topicsRoutes } from "./topics";
 import { activitiesRoutes } from "./activities";
 import { groupsRoutes } from "./groups";
 import { usersRoutes } from "./users";
-
 import { reportsRoutes } from "./reports";
-
-// import { educationalMaterialRoutes } from "./ai-tools/educational-material-wizard";
-// import { quizWizardRoutes } from "./ai-tools/quiz-wizard";
 import { questionsRoutes } from "./questions";
-
+import { groupActivityRoutes } from "./group-activity";
+import { studentCourseDetailsRoutes } from "./student-course-details"; // DODANE
 
 const allTeacherRoutes = [
   ...dashboardRoutes,
   ...coursesRoutes,
   ...topicsRoutes,
-
   ...activitiesRoutes,
   ...questionsRoutes,
-
   ...groupsRoutes,
   ...usersRoutes,
-
   ...reportsRoutes,
+  ...groupActivityRoutes,
+  ...studentCourseDetailsRoutes, // DODANE
 ];
 
 const TeacherPanelComponent = () => (

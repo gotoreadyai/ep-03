@@ -13,6 +13,8 @@ import { topicsResource } from "./topics";
 import { activitiesResource } from "./activities";
 import { groupsResource } from "./groups";
 import { usersResource } from "./users";
+import { groupActivityResource } from "./group-activity";
+import { studentCourseDetailsResource } from "./student-course-details"; // DODANE
 
 import {
   reportsResource,
@@ -23,7 +25,6 @@ import {
   reportsSummaryResource,
 } from "./reports";
 
-
 // Parent resource dla zasobów edukacyjnych
 const educationalResourcesParent: IResourceItem = {
   name: "dashboard",
@@ -33,8 +34,6 @@ const educationalResourcesParent: IResourceItem = {
     icon: <BookOpen className="h-4 w-4" />
   },
 };
-
-
 
 export const teacherResources: IResourceItem[] = [
   // Parent dla zasobów edukacyjnych
@@ -65,11 +64,8 @@ export const teacherResources: IResourceItem[] = [
     },
   },
 
- 
-
   // Użytkownicy i organizacje - osobno
   usersResource,
-
 
   // Raporty - rodzic widoczny w menu
   reportsResource,
@@ -95,4 +91,8 @@ export const teacherResources: IResourceItem[] = [
     ...reportsSummaryResource,
     meta: { ...reportsSummaryResource.meta, parent: "reports" },
   },
+
+  // Hidden resources (nie w menu, dostępne przez direct link)
+  groupActivityResource,
+  studentCourseDetailsResource, // DODANE
 ];

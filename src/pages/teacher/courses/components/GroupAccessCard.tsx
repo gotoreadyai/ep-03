@@ -1,6 +1,8 @@
+import { useNavigate } from "react-router-dom";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Users, Calendar } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Users, Calendar, Eye } from "lucide-react";
 
 interface GroupAccessCardProps {
   group: {
@@ -10,9 +12,12 @@ interface GroupAccessCardProps {
     is_active: boolean;
   };
   membersCount: number;
+  courseId: number;
 }
 
-export const GroupAccessCard = ({ group, membersCount }: GroupAccessCardProps) => {
+export const GroupAccessCard = ({ group, membersCount, courseId }: GroupAccessCardProps) => {
+  const navigate = useNavigate();
+
   return (
     <Card className="hover:shadow-md transition-shadow">
       <CardContent className="pt-6">
@@ -26,14 +31,29 @@ export const GroupAccessCard = ({ group, membersCount }: GroupAccessCardProps) =
               </span>
               <span className="flex items-center gap-1">
                 <Users className="w-3 h-3" />
-                {membersCount} {membersCount === 1 ? 'uczeń' : membersCount > 1 && membersCount < 5 ? 'uczniów' : 'uczniów'}
+                {membersCount} {membersCount === 1 ? 'uczeń' : 'uczniów'}
               </span>
             </div>
           </div>
-          <Badge variant={group.is_active ? "default" : "secondary"}>
-            {group.is_active ? "Aktywna" : "Nieaktywna"}
-          </Badge>
+          <div className="flex flex-col gap-2">
+            <Badge variant={group.is_active ? "default" : "secondary"}>
+              {group.is_active ? "Aktywna" : "Nieaktywna"}
+            </Badge>
+           
+          </div>
+          
         </div>
+        <Button
+              size="sm"
+              variant="outline"
+              onClick={(e) => {
+                e.stopPropagation();
+                navigate(`/teacher/groups/${group.id}/courses/${courseId}/activity`);
+              }}
+            >
+              <Eye className="w-3 h-3 mr-1" />
+              Zobacz postępy
+            </Button>
       </CardContent>
     </Card>
   );
