@@ -1,6 +1,6 @@
 // src/pages/student/student-layout/TopBar.tsx
 import { useState, useMemo } from "react";
-import { Bell, Zap, ChevronDown, User, Settings, HelpCircle, LogOut, Sun, Moon } from "lucide-react";
+import { Bell, Zap, ChevronDown, User,  LogOut, Sun, Moon } from "lucide-react";
 import { useGetIdentity, useLogout } from "@refinedev/core";
 
 interface TopBarProps {
@@ -107,30 +107,6 @@ export const TopBar: React.FC<TopBarProps> = ({ stats, theme, onToggleTheme }) =
                       >
                         <User className="w-4 h-4" />
                         <span className="text-sm font-medium">Profil</span>
-                      </button>
-                    </li>
-                    <li>
-                      <button
-                        onClick={() => {
-                          window.location.href = "/student/settings";
-                          setProfileMenuOpen(false);
-                        }}
-                        className="w-full flex items-center gap-3 px-3 h-11 rounded-lg text-foreground/80 hover:text-foreground hover:bg-muted transition-colors"
-                      >
-                        <Settings className="w-4 h-4" />
-                        <span className="text-sm font-medium">Ustawienia</span>
-                      </button>
-                    </li>
-                    <li>
-                      <button
-                        onClick={() => {
-                          window.location.href = "/student/help";
-                          setProfileMenuOpen(false);
-                        }}
-                        className="w-full flex items-center gap-3 px-3 h-11 rounded-lg text-foreground/80 hover:text-foreground hover:bg-muted transition-colors"
-                      >
-                        <HelpCircle className="w-4 h-4" />
-                        <span className="text-sm font-medium">Pomoc</span>
                       </button>
                     </li>
                     <li>
