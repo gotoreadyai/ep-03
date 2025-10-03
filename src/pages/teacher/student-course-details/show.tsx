@@ -1,3 +1,5 @@
+// src/pages/teacher/student-course-details/show.tsx
+import { useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -7,6 +9,7 @@ import { useStudentCourseDetails } from "./hooks/useStudentCourseDetails";
 import { StudentHeader } from "./components/StudentHeader";
 import { OverallProgressCard } from "./components/OverallProgressCard";
 import { TopicActivityList } from "./components/TopicActivityList";
+import { QuizDetailsModal } from "./components/QuizDetailsModal";
 
 export const StudentCourseDetailsShow = () => {
   const { groupId, courseId, studentId } = useParams();
@@ -15,9 +18,28 @@ export const StudentCourseDetailsShow = () => {
   const { student, group, course, topicsWithActivities, overallStats, isLoading } =
     useStudentCourseDetails(groupId!, courseId!, studentId!);
 
+  // State dla modalu
+  const [quizModalOpen, setQuizModalOpen] = useState(false);
+  const [selectedQuiz, setSelectedQuiz] = useState<{
+    activityId: number;
+    activityTitle: string;
+    lastAttempt: any;
+  } | null>(null);
+
   const handleViewQuizDetails = (activityId: number) => {
-    // TODO: Implement quiz details modal/page
-    console.log("View quiz details for activity:", activityId);
+    // Znajdź aktywność w danych
+    const activity = topicsWithActivities
+      .flatMap((topic) => topic.activities)
+      .find((act) => act.id === activityId);
+
+    if (activity && activity.progress?.last_attempt) {
+      setSelectedQuiz({
+        activityId: activity.id,
+        activityTitle: activity.title,
+        lastAttempt: activity.progress.last_attempt,
+      });
+      setQuizModalOpen(true);
+    }
   };
 
   if (isLoading) {
@@ -78,6 +100,17 @@ export const StudentCourseDetailsShow = () => {
           />
         </CardContent>
       </Card>
+
+      {/* Modal ze szczegółami quizu */}
+      {selectedQuiz && (
+        <QuizDetailsModal
+          open={quizModalOpen}
+          onOpenChange={setQuizModalOpen}
+          activityId={selectedQuiz.activityId}
+          activityTitle={selectedQuiz.activityTitle}
+          lastAttempt={selectedQuiz.lastAttempt}
+        />
+      )}
     </SubPage>
   );
 };

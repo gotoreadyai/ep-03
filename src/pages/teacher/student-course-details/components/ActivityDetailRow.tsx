@@ -37,9 +37,35 @@ export const ActivityDetailRow = ({
 }: ActivityDetailRowProps) => {
   const [isExpanded, setIsExpanded] = useState(false);
 
+  // DEBUG - sprawdź co przychodzi z backendu
+  console.log('ActivityDetailRow Debug:', {
+    title: activity.title,
+    time_spent: progress?.time_spent,
+    type: typeof progress?.time_spent,
+    raw_progress: progress
+  });
+
   const formatTime = (seconds: number) => {
-    const minutes = Math.floor(seconds / 60);
-    if (minutes < 60) return `${minutes} min`;
+    console.log('formatTime called with:', seconds, typeof seconds);
+    
+    // Konwersja na number jeśli to string
+    const sec = typeof seconds === 'string' ? parseInt(seconds) : seconds;
+    
+    if (isNaN(sec) || sec === 0) {
+      return '0s';
+    }
+    
+    const minutes = Math.floor(sec / 60);
+    
+    // Pokaż sekundy jeśli < 1 minuty
+    if (minutes === 0) {
+      return `${sec}s`;
+    }
+    
+    if (minutes < 60) {
+      return `${minutes} min`;
+    }
+    
     const hours = Math.floor(minutes / 60);
     const remainingMinutes = minutes % 60;
     return `${hours}h ${remainingMinutes}m`;

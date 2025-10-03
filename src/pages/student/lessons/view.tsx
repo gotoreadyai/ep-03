@@ -50,6 +50,29 @@ export const LessonView: React.FC = () => {
   const [showSummary, setShowSummary] = React.useState(false);
   const [startTime] = React.useState(Date.now());
 
+  // ✅ POPRAWKA: Start activity timer when component mounts
+  React.useEffect(() => {
+    if (!lessonId) return;
+    
+    const startActivityTimer = async () => {
+      try {
+        const { error } = await supabaseClient.rpc("start_activity", { 
+          p_activity_id: parseInt(lessonId) 
+        });
+        
+        if (error) {
+          console.error('Error starting activity timer:', error);
+        } else {
+          console.log('Activity timer started successfully');
+        }
+      } catch (error) {
+        console.error('Failed to start activity timer:', error);
+      }
+    };
+
+    startActivityTimer();
+  }, [lessonId]);
+
   // sync keys po zmianie sekcji
   React.useEffect(() => {
     if (!sections.length) return;
@@ -105,22 +128,12 @@ export const LessonView: React.FC = () => {
   const completeLesson = async () => {
     if (!allChecked) return toast.info("Najpierw odhacz wszystkie sekcje po kolei.");
     
-    console.log('Starting lesson completion...');
+    console.log('Completing lesson...');
     
     try {
-      // Start activity
-      const { error: startError } = await supabaseClient.rpc("start_activity", { 
-        p_activity_id: parseInt(lessonId!) 
-      });
+      // ✅ POPRAWKA: Nie wywołujemy start_activity tutaj - już jest w useEffect
+      // Backend policzy czas: NOW() - started_at (z useEffect)
       
-      if (startError) {
-        console.error('Error starting activity:', startError);
-        throw startError;
-      }
-      
-      console.log('Activity started, completing material...');
-      
-      // Complete material
       const { data: result, error } = await supabaseClient.rpc("complete_material", { 
         p_activity_id: parseInt(lessonId!) 
       });
@@ -132,7 +145,7 @@ export const LessonView: React.FC = () => {
       if (result) {
         const timeSpent = Math.floor((Date.now() - startTime) / 1000);
         
-        console.log('Material completed successfully');
+        console.log('Material completed successfully, time spent:', timeSpent);
         
         // Pokaż podsumowanie
         setShowSummary(true);
@@ -149,7 +162,7 @@ export const LessonView: React.FC = () => {
         invalidateRPCCache("get_course_structure");
         invalidateRPCCache("get_my_courses");
         
-        // Wymuś odświeżenie statystyk - teraz używamy kontekstu
+        // Wymuś odświeżenie statystyk
         setTimeout(() => {
           console.log('Forcing stats refresh...');
           refetchStats();
