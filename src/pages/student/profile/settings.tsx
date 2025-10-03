@@ -207,53 +207,7 @@ export const ProfileSettings = () => {
         </div>
       </motion.section>
 
-      {/* ========================= USTAWIENIA — pełne na mobile, kompaktowe na desktop ========================= */}
-      <motion.section
-        initial={{ opacity: 0, y: 8 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.4, delay: 0.08 }}
-        className="space-y-4"
-      >
-        <h2 className="text-lg sm:text-xl font-semibold tracking-tight">
-          Ustawienia
-        </h2>
-
-        {/* Kontener z responsywnym układem przycisków */}
-        <div className="flex flex-col sm:flex-row sm:flex-wrap gap-3">
-          <motion.button
-            whileHover={{ x: 2 }}
-            whileTap={{ scale: 0.98 }}
-            className="w-full sm:w-auto sm:min-w-[220px] inline-flex items-center justify-center rounded-xl bg-primary text-primary-foreground px-4 py-3 shadow-soft hover:bg-primary/90 focus-ring"
-          >
-            <span className="inline-flex items-center gap-2 font-medium">
-              <Lock className="w-4 h-4" />
-              Zmień hasło
-            </span>
-          </motion.button>
-
-          <motion.button
-            whileHover={{ x: 2 }}
-            whileTap={{ scale: 0.98 }}
-            className="w-full sm:w-auto sm:min-w-[220px] inline-flex items-center justify-center rounded-xl bg-secondary text-white px-4 py-3 shadow-soft hover:opacity-95 focus-ring"
-          >
-            <span className="inline-flex items-center gap-2 font-medium">
-              <Bell className="w-4 h-4" />
-              Ustawienia powiadomień
-            </span>
-          </motion.button>
-
-          <motion.button
-            whileHover={{ x: 2 }}
-            whileTap={{ scale: 0.98 }}
-            className="w-full sm:w-auto sm:min-w-[220px] inline-flex items-center justify-center rounded-xl bg-destructive text-white px-4 py-3 shadow-soft hover:bg-destructive/90 focus-ring"
-          >
-            <span className="inline-flex items-center gap-2 font-medium">
-              <Trash2 className="w-4 h-4" />
-              Usuń konto
-            </span>
-          </motion.button>
-        </div>
-      </motion.section>
+      
     </div>
   );
 };
