@@ -191,7 +191,7 @@ export const GroupCoursesManagement = () => {
       <div className="max-w-7xl mx-auto space-y-6">
         {/* Nagłówek */}
         <div>
-          <h1 className="text-2xl font-bold">Kursy dla grup</h1>
+          <h1 className="text-2xl font-bold">Kursy i grupy</h1>
           <p className="text-muted-foreground mt-1">
             Najpierw wybierz kurs, potem przypisz do niego grupy
           </p>

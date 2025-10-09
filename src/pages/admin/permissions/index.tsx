@@ -43,7 +43,7 @@ export const teacherCoursesResource = {
   name: "permissions-teacher-courses",
   list: "/admin/permissions/teacher-courses",
   meta: {
-    label: "Kursy nauczycieli",
+    label: "Kursy i nauczyciele",
     icon: <BookOpen className="h-4 w-4" />,
     parent: "permissions",
   },
@@ -54,7 +54,7 @@ export const groupCoursesResource = {
   name: "permissions-group-courses",
   list: "/admin/permissions/group-courses",
   meta: {
-    label: "Kursy dla grup",
+    label: "Kursy i grupy",
     icon: <GraduationCap className="h-4 w-4" />,
     parent: "permissions",
   },

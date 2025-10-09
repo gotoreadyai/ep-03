@@ -95,7 +95,6 @@ export const ActivitiesEdit = () => {
       },
       onMutationError: (error: any) => {
         console.error("Błąd podczas aktualizacji:", error);
-        
         if (error?.code === "PGRST204") {
           toast.error("Błąd konfiguracji - skontaktuj się z administratorem");
         } else if (error?.code === "23505") {
@@ -148,17 +147,16 @@ export const ActivitiesEdit = () => {
     }
   };
 
-  const getActivityIcon = () => {
-    return activityType === "quiz" ? (
+  const getActivityIcon = () =>
+    activityType === "quiz" ? (
       <HelpCircle className="w-6 h-6 text-blue-500" />
     ) : (
       <FileText className="w-6 h-6 text-green-500" />
     );
-  };
 
   const handleManageQuestions = () => {
     const currentUrl = window.location.pathname + window.location.search;
-    sessionStorage.setItem('returnUrl', currentUrl);
+    sessionStorage.setItem("returnUrl", currentUrl);
     navigate(`/teacher/questions/manage/${activity?.id}`);
   };
 
@@ -167,9 +165,8 @@ export const ActivitiesEdit = () => {
   return (
     <SubPage>
       <BackToCourseButton />
-      https://mdxeditor.dev/editor/demo
+
       <FlexBox>
-     
         <Lead
           title={
             <div className="flex items-center gap-2">
@@ -187,10 +184,7 @@ export const ActivitiesEdit = () => {
           }
         />
         {activityType === "quiz" && (
-          <Button
-            onClick={handleManageQuestions}
-            variant="outline"
-          >
+          <Button onClick={handleManageQuestions} variant="outline">
             <ListChecks className="w-4 h-4 mr-2" />
             Zarządzaj pytaniami ({numberOfQuestions})
           </Button>
@@ -204,11 +198,7 @@ export const ActivitiesEdit = () => {
         <CardContent>
           <Form onSubmit={handleSubmit(onFinish)}>
             <GridBox variant="1-2-2">
-              <FormControl
-                label="Typ aktywności"
-                error={errors.type?.message as string}
-                required
-              >
+              <FormControl label="Typ aktywności" error={errors.type?.message as string} required>
                 <Select value={activityType} disabled>
                   <SelectTrigger className="bg-muted">
                     <SelectValue placeholder="Wybierz typ" />
@@ -228,30 +218,16 @@ export const ActivitiesEdit = () => {
                     </SelectItem>
                   </SelectContent>
                 </Select>
-                <p className="text-xs text-muted-foreground mt-1">
-                  Typ aktywności nie może być zmieniony
-                </p>
+                <p className="text-xs text-muted-foreground mt-1">Typ aktywności nie może być zmieniony</p>
               </FormControl>
 
-              <FormControl
-                label="Tytuł"
-                htmlFor="title"
-                error={errors.title?.message as string}
-                required
-              >
+              <FormControl label="Tytuł" htmlFor="title" error={errors.title?.message as string} required>
                 <Input
                   id="title"
-                  placeholder={
-                    activityType === "quiz"
-                      ? "np. Test wiedzy"
-                      : "np. Wprowadzenie"
-                  }
+                  placeholder={activityType === "quiz" ? "np. Test wiedzy" : "np. Wprowadzenie"}
                   {...register("title", {
                     required: "Tytuł jest wymagany",
-                    minLength: {
-                      value: 3,
-                      message: "Tytuł musi mieć minimum 3 znaki",
-                    },
+                    minLength: { value: 3, message: "Tytuł musi mieć minimum 3 znaki" },
                   })}
                 />
               </FormControl>
@@ -268,10 +244,7 @@ export const ActivitiesEdit = () => {
                   min="1"
                   {...register("position", {
                     required: "Pozycja jest wymagana",
-                    min: {
-                      value: 1,
-                      message: "Pozycja musi być większa od 0",
-                    },
+                    min: { value: 1, message: "Pozycja musi być większa od 0" },
                     valueAsNumber: true,
                   })}
                 />
@@ -288,10 +261,7 @@ export const ActivitiesEdit = () => {
                   min="1"
                   placeholder="np. 15"
                   {...register("duration_min", {
-                    min: {
-                      value: 1,
-                      message: "Czas musi być większy od 0",
-                    },
+                    min: { value: 1, message: "Czas musi być większy od 0" },
                     valueAsNumber: true,
                   })}
                 />
@@ -299,33 +269,14 @@ export const ActivitiesEdit = () => {
             </GridBox>
 
             {activityType === "material" && (
-              <>
-                <MaterialSectionEditor
-                  value={watch("content") || ""}
-                  onChange={(value) => setValue("content", value)}
-                  label="Treść materiału"
-                  error={errors.content?.message as string}
-                  required
-                  hint="Edytuj każdą sekcję osobno. Struktura: 6 głównych sekcji. Pytania kontrolne dodajesz przez generator (krok 4)."
-                />
-                
-                <Card className="bg-blue-50 dark:bg-blue-950/30 border-blue-200 dark:border-blue-800">
-                  <CardContent className="pt-6">
-                    <p className="text-sm">
-                      <strong className="text-blue-700 dark:text-blue-300">
-                        Struktura materiału:
-                      </strong>
-                    </p>
-                    <ul className="text-sm text-blue-600 dark:text-blue-400 mt-2 ml-4 space-y-1">
-                      <li>6 głównych sekcji: Cele → Pojęcia → Omówienie → Przykłady → Błędy → Podsumowanie</li>
-                      <li>Każda sekcja ma własny edytor (rozwiń/zwiń strzałką)</li>
-                      <li>Przycisk oka - podgląd, przycisk kodu - edycja</li>
-                      <li>Pytania kontrolne (```quiz) dodajesz przez generator w kroku 4</li>
-                      <li>Uczeń musi odpowiedzieć poprawnie aby odhaczyć sekcję</li>
-                    </ul>
-                  </CardContent>
-                </Card>
-              </>
+              <MaterialSectionEditor
+                value={watch("content") || ""}
+                onChange={(value) => setValue("content", value)}
+                label="Treść materiału"
+                error={errors.content?.message as string}
+                required
+                hint="Edytuj sekcje w trybie WYSIWYG lub Markdown. Dodawaj/układaj sekcje przyciskami nad panelem."
+              />
             )}
 
             {activityType === "quiz" && (
@@ -343,34 +294,21 @@ export const ActivitiesEdit = () => {
                       min="0"
                       max="100"
                       {...register("passing_score", {
-                        min: {
-                          value: 0,
-                          message: "Wartość minimalna to 0",
-                        },
-                        max: {
-                          value: 100,
-                          message: "Wartość maksymalna to 100",
-                        },
+                        min: { value: 0, message: "Wartość minimalna to 0" },
+                        max: { value: 100, message: "Wartość maksymalna to 100" },
                         valueAsNumber: true,
                       })}
                     />
                   </FormControl>
 
-                  <FormControl
-                    label="Limit czasu (min)"
-                    htmlFor="time_limit"
-                    hint="Pozostaw puste dla braku limitu"
-                  >
+                  <FormControl label="Limit czasu (min)" htmlFor="time_limit" hint="Pozostaw puste dla braku limitu">
                     <Input
                       id="time_limit"
                       type="number"
                       min="1"
                       placeholder="Brak limitu"
                       {...register("time_limit", {
-                        min: {
-                          value: 1,
-                          message: "Limit musi być większy od 0",
-                        },
+                        min: { value: 1, message: "Limit musi być większy od 0" },
                         valueAsNumber: true,
                       })}
                     />
@@ -387,10 +325,7 @@ export const ActivitiesEdit = () => {
                       min="1"
                       placeholder="Bez limitu"
                       {...register("max_attempts", {
-                        min: {
-                          value: 1,
-                          message: "Minimum 1 próba",
-                        },
+                        min: { value: 1, message: "Minimum 1 próba" },
                         valueAsNumber: true,
                       })}
                     />
@@ -407,7 +342,7 @@ export const ActivitiesEdit = () => {
                             {numberOfQuestions === 1
                               ? "pytanie"
                               : numberOfQuestions < 5
-                              ? "pytania" 
+                              ? "pytania"
                               : "pytań"}
                           </p>
                           <p className="text-sm text-muted-foreground mt-1">
@@ -428,9 +363,7 @@ export const ActivitiesEdit = () => {
               <FlexBox variant="start">
                 <Switch
                   checked={watch("is_published") || false}
-                  onCheckedChange={(checked) =>
-                    setValue("is_published", checked)
-                  }
+                  onCheckedChange={(c) => setValue("is_published", c)}
                 />
                 <span className="text-sm text-muted-foreground">
                   Aktywność jest opublikowana (uczniowie mogą ją zobaczyć)
@@ -439,12 +372,7 @@ export const ActivitiesEdit = () => {
             </FormControl>
 
             <FormActions>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={handleCancel}
-                disabled={isSubmitting}
-              >
+              <Button type="button" variant="outline" onClick={handleCancel} disabled={isSubmitting}>
                 Anuluj
               </Button>
               <Button type="submit" disabled={isSubmitting}>
@@ -457,3 +385,6 @@ export const ActivitiesEdit = () => {
     </SubPage>
   );
 };
+
+// eksport nazwany i domyślny — aby uniknąć błędu importu
+export default ActivitiesEdit;
