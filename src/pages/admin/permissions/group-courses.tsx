@@ -5,6 +5,7 @@ import { supabaseClient } from "@/utility";
 import { SubPage } from "@/components/layout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
+  Badge,
   Button,
   Checkbox,
   Dialog,
@@ -14,11 +15,16 @@ import {
   DialogTitle,
   Input,
   ScrollArea,
+  Switch,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
 } from "@/components/ui";
-import { Calendar, Search, Users } from "lucide-react";
+import { Calendar, Search, Trash2, Users } from "lucide-react";
 import { toast } from "sonner";
-import { GroupCoursesInfoCard } from "./components/GroupCoursesInfoCard";
-import { CoursesTable, CourseRow } from "./components/CoursesTable";
 
 type Group = {
   id: number;
@@ -27,7 +33,12 @@ type Group = {
   is_active: boolean;
 };
 
-type Course = CourseRow;
+type Course = {
+  id: number;
+  title: string;
+  icon_emoji?: string;
+  is_published?: boolean | null;
+};
 
 type CourseAccess = {
   course_id: number;
@@ -42,14 +53,14 @@ export const GroupCoursesManagement = () => {
   const [showDialog, setShowDialog] = useState(false);
   const [saving, setSaving] = useState(false);
 
-  // Kursy
+  // Kursy (pierwsza lista)
   const { data: coursesData, isLoading: coursesLoading, refetch: refetchCourses } = useList<Course>({
     resource: "courses",
     pagination: { pageSize: 1000 },
     sorters: [{ field: "title", order: "asc" }],
   });
 
-  // Grupy
+  // Grupy (do przypisań)
   const { data: groupsData } = useList<Group>({
     resource: "groups",
     filters: [{ field: "is_active", operator: "eq", value: true }],
@@ -58,7 +69,7 @@ export const GroupCoursesManagement = () => {
     queryOptions: { enabled: showDialog },
   });
 
-  // Przypisania (group_id != null)
+  // Wszystkie przypisania (filtrowane w JS do group_id != null)
   const { data: accessData, refetch: refetchAccess } = useList<CourseAccess>({
     resource: "course_access",
     pagination: { pageSize: 10000 },
@@ -72,12 +83,13 @@ export const GroupCoursesManagement = () => {
   );
 
   // Filtrowanie kursów
-  const filteredCourses = useMemo(
-    () => courses.filter((c) => !search || c.title.toLowerCase().includes(search.toLowerCase())),
-    [courses, search]
-  );
+  const filteredCourses = useMemo(() => {
+    return courses.filter(
+      (c) => !search || c.title.toLowerCase().includes(search.toLowerCase())
+    );
+  }, [courses, search]);
 
-  // Licznik przypisań per kurs
+  // Zliczanie przypisań na kurs
   const courseGroupCounts = useMemo(() => {
     const counts: Record<number, number> = {};
     filteredCourses.forEach((c) => {
@@ -86,13 +98,13 @@ export const GroupCoursesManagement = () => {
     return counts;
   }, [filteredCourses, allAccessGroupOnly]);
 
-  // Zestaw groupId dla wybranego kursu
+  // ID grup przypisanych do wybranego kursu
   const selectedCourseGroupIds = useMemo(() => {
     if (!selectedCourse) return new Set<number>();
     return new Set(
       allAccessGroupOnly
         .filter((a) => a.course_id === selectedCourse.id)
-        .map((a) => a.group_id!) // != null
+        .map((a) => a.group_id!) // group_id != null
     );
   }, [selectedCourse, allAccessGroupOnly]);
 
@@ -123,6 +135,7 @@ export const GroupCoursesManagement = () => {
           .delete()
           .eq("course_id", selectedCourse.id)
           .eq("group_id", groupId);
+
         if (error) throw error;
         toast.success("Usunięto grupę z kursu");
       } else {
@@ -131,9 +144,11 @@ export const GroupCoursesManagement = () => {
           group_id: groupId,
           teacher_id: null,
         });
+
         if (error) throw error;
         toast.success("Dodano grupę do kursu");
       }
+
       await refetchAccess();
     } catch (e: any) {
       toast.error(e.message || "Wystąpił błąd");
@@ -148,6 +163,7 @@ export const GroupCoursesManagement = () => {
         .from("courses")
         .update({ is_published: !course.is_published })
         .eq("id", course.id);
+
       if (error) throw error;
       toast.success(course.is_published ? "Przeniesiono do szkicu" : "Opublikowano kurs");
       await refetchCourses();
@@ -158,6 +174,7 @@ export const GroupCoursesManagement = () => {
 
   const deleteCourse = async (courseId: number) => {
     if (!confirm("Na pewno usunąć ten kurs? Tej operacji nie można cofnąć.")) return;
+
     try {
       const { error } = await supabaseClient.from("courses").delete().eq("id", courseId);
       if (error) throw error;
@@ -175,13 +192,12 @@ export const GroupCoursesManagement = () => {
         {/* Nagłówek */}
         <div>
           <h1 className="text-2xl font-bold">Kursy dla grup</h1>
-          <p className="text-muted-foreground mt-1">Najpierw wybierz kurs, potem przypisz do niego grupy</p>
+          <p className="text-muted-foreground mt-1">
+            Najpierw wybierz kurs, potem przypisz do niego grupy
+          </p>
         </div>
 
-        {/* Info */}
-        <GroupCoursesInfoCard />
-
-        {/* Wyszukiwarka kursów */}
+        {/* Wyszukiwarka */}
         <Card>
           <CardContent className="p-4">
             <div className="relative">
@@ -196,21 +212,72 @@ export const GroupCoursesManagement = () => {
           </CardContent>
         </Card>
 
-        {/* Tabela kursów (wspólny komponent) */}
+        {/* Tabela kursów */}
         <Card>
           <CardHeader>
             <CardTitle>Kursy ({filteredCourses.length})</CardTitle>
           </CardHeader>
           <CardContent className="p-0">
-            <CoursesTable
-              courses={filteredCourses}
-              counts={courseGroupCounts}
-              isLoading={coursesLoading}
-              manageLabel="Zarządzaj grupami"
-              onTogglePublish={togglePublish}
-              onManage={openAssignDialog}
-              onDelete={deleteCourse}
-            />
+            {coursesLoading ? (
+              <div className="p-8 text-center">Ładowanie...</div>
+            ) : filteredCourses.length === 0 ? (
+              <div className="p-8 text-center text-muted-foreground">Brak kursów</div>
+            ) : (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Kurs</TableHead>
+                    <TableHead className="text-center">Grupy</TableHead>
+                    <TableHead className="text-center">Publikacja</TableHead>
+                    <TableHead className="text-center">Akcje</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {filteredCourses.map((course) => (
+                    <TableRow key={course.id}>
+                      <TableCell className="font-medium">
+                        <div className="flex items-center gap-2">
+                          <span className="text-2xl">{course.icon_emoji || "📚"}</span>
+                          {course.title}
+                          {course.is_published ? (
+                            <Badge variant="secondary" className="ml-2">Opublikowany</Badge>
+                          ) : (
+                            <Badge className="ml-2">Szkic</Badge>
+                          )}
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-center">
+                        <Badge variant="secondary">
+                          {courseGroupCounts[course.id] || 0} grup
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-center">
+                        <Switch
+                          checked={!!course.is_published}
+                          onCheckedChange={() => togglePublish(course)}
+                        />
+                      </TableCell>
+                      <TableCell className="text-center">
+                        <div className="flex items-center justify-center gap-2">
+                          <Button size="sm" variant="outline" onClick={() => openAssignDialog(course)}>
+                            <Users className="w-4 h-4 mr-1" />
+                            Zarządzaj grupami
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => deleteCourse(course.id)}
+                            className="text-red-600"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            )}
           </CardContent>
         </Card>
       </div>
@@ -239,45 +306,41 @@ export const GroupCoursesManagement = () => {
               onChange={(e) => setGroupSearch(e.target.value)}
               className="h-9"
             />
+
             <ScrollArea className="h-[420px] border rounded-lg p-3">
               <div className="space-y-2">
-                {useMemo(() => {
-                  const list = filteredGroups;
-                  if (!list.length) {
-                    return (
-                      <div className="text-center text-muted-foreground py-10 text-sm">
-                        Brak wyników
-                      </div>
-                    );
-                  }
-                  return list.map((group) => {
-                    const isSelected = selectedCourseGroupIds.has(group.id);
-                    return (
-                      <label
-                        key={group.id}
-                        className={`flex items-center gap-3 p-3 rounded-lg border-2 cursor-pointer transition-all ${
-                          isSelected ? "border-primary bg-primary/5" : "border-transparent hover:bg-muted"
-                        }`}
-                        onClick={() => toggleGroup(group.id)}
-                      >
-                        <Checkbox
-                          checked={isSelected}
-                          disabled={saving}
-                          onClick={(e) => e.stopPropagation()}
-                          onCheckedChange={() => toggleGroup(group.id)}
-                        />
-                        <span className="text-2xl">👥</span>
-                        <div className="flex-1">
-                          <div className="font-medium">{group.name}</div>
-                          <div className="text-xs text-muted-foreground flex items-center gap-1">
-                            <Calendar className="w-3 h-3" />
-                            {group.academic_year}
-                          </div>
+                {filteredGroups.map((group) => {
+                  const isSelected = selectedCourseGroupIds.has(group.id);
+                  return (
+                    <label
+                      key={group.id}
+                      className={`flex items-center gap-3 p-3 rounded-lg border-2 cursor-pointer transition-all ${
+                        isSelected ? "border-primary bg-primary/5" : "border-transparent hover:bg-muted"
+                      }`}
+                      onClick={() => toggleGroup(group.id)}
+                    >
+                      <Checkbox
+                        checked={isSelected}
+                        disabled={saving}
+                        onClick={(e) => e.stopPropagation()}
+                        onCheckedChange={() => toggleGroup(group.id)}
+                      />
+                      <span className="text-2xl">👥</span>
+                      <div className="flex-1">
+                        <div className="font-medium">{group.name}</div>
+                        <div className="text-xs text-muted-foreground flex items-center gap-1">
+                          <Calendar className="w-3 h-3" />
+                          {group.academic_year}
                         </div>
-                      </label>
-                    );
-                  });
-                }, [filteredGroups, saving, selectedCourseGroupIds])}
+                      </div>
+                    </label>
+                  );
+                })}
+                {filteredGroups.length === 0 && (
+                  <div className="text-center text-muted-foreground py-10 text-sm">
+                    Brak wyników
+                  </div>
+                )}
               </div>
             </ScrollArea>
           </div>
