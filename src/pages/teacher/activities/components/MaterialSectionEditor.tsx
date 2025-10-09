@@ -11,28 +11,9 @@ import {
   Copy,
   Trash2,
   Plus,
-  Bold,
-  Italic,
-  Underline,
-  List as ListIcon,
-  ListOrdered,
-  Link as LinkIcon,
-  Table as TableIcon,
-  Code2,
-  RotateCcw,
 } from "lucide-react";
 
-// TipTap (bez globalnego CSS)
-import { EditorContent, useEditor } from "@tiptap/react";
-import StarterKit from "@tiptap/starter-kit";
-import UnderlineExt from "@tiptap/extension-underline";
-import LinkExt from "@tiptap/extension-link";
-import Placeholder from "@tiptap/extension-placeholder";
-import { Table } from "@tiptap/extension-table";
-import { TableRow } from "@tiptap/extension-table-row";
-import { TableCell } from "@tiptap/extension-table-cell";
-import { TableHeader } from "@tiptap/extension-table-header";
-import { Markdown } from "tiptap-markdown";
+import Wysiwyg from "./editor/Wysiwyg";
 
 interface Section {
   id: string;
@@ -92,140 +73,6 @@ const rebuildMarkdown = (sections: Section[]): string =>
     .filter((s) => s.title.trim() && (s.content.trim() || s.hasQuiz))
     .map((s) => `## ${s.title}\n\n${s.content.trim()}`)
     .join("\n\n");
-
-// ——— pojedynczy edytor WYSIWYG (TipTap + Markdown) — bez dodatkowej karty ———
-function Wysiwyg({
-  value,
-  onChange,
-  placeholder = "Zacznij pisać…",
-}: {
-  value: string;
-  onChange: (md: string) => void;
-  placeholder?: string;
-}) {
-  const editor = useEditor({
-    extensions: [
-      StarterKit,
-      UnderlineExt,
-      LinkExt.configure({ openOnClick: false, autolink: true }),
-      Placeholder.configure({ placeholder }),
-      Table.configure({ resizable: false }),
-      TableRow,
-      TableHeader,
-      TableCell,
-      Markdown.configure({
-        html: false,
-        transformPastedText: true,
-      }),
-    ],
-    content: value && value.trim().length ? value : STARTER_MD,
-    editorProps: {
-      attributes: {
-        class:
-          "prose prose-sm max-w-none dark:prose-invert min-h-[240px] p-4 outline-none",
-      },
-    },
-    onUpdate: ({ editor }) => {
-      const md = (editor.storage as any).markdown.getMarkdown();
-      onChange(md);
-    },
-  });
-
-  if (!editor) return null;
-  const chain = () => editor.chain().focus();
-
-  return (
-    <div className="rounded-xl overflow-hidden">
-      {/* smukły toolbar */}
-      <div className="flex flex-wrap items-center gap-1 border-b bg-muted/30 px-2 py-1">
-        <Button type="button" size="sm" variant="ghost" onClick={() => chain().toggleBold().run()} title="Pogrubienie (Ctrl/Cmd+B)">
-          <Bold className="w-4 h-4" />
-        </Button>
-        <Button type="button" size="sm" variant="ghost" onClick={() => chain().toggleItalic().run()} title="Kursywa (Ctrl/Cmd+I)">
-            <Italic className="w-4 h-4" />
-        </Button>
-        <Button type="button" size="sm" variant="ghost" onClick={() => chain().toggleUnderline().run()} title="Podkreślenie">
-          <Underline className="w-4 h-4" />
-        </Button>
-
-        <div className="mx-1 h-5 w-px bg-border" />
-
-        <Button type="button" size="sm" variant="ghost" onClick={() => chain().toggleHeading({ level: 2 }).run()} title="Nagłówek H2">
-          H2
-        </Button>
-        <Button type="button" size="sm" variant="ghost" onClick={() => chain().toggleHeading({ level: 3 }).run()} title="Nagłówek H3">
-          H3
-        </Button>
-
-        <div className="mx-1 h-5 w-px bg-border" />
-
-        <Button type="button" size="sm" variant="ghost" onClick={() => chain().toggleBulletList().run()} title="Lista punktowana">
-          <ListIcon className="w-4 h-4" />
-        </Button>
-        <Button type="button" size="sm" variant="ghost" onClick={() => chain().toggleOrderedList().run()} title="Lista numerowana">
-          <ListOrdered className="w-4 h-4" />
-        </Button>
-
-        <div className="mx-1 h-5 w-px bg-border" />
-
-        <Button
-          type="button"
-          size="sm"
-          variant="ghost"
-          onClick={() => {
-            const url = window.prompt("Adres URL:");
-            if (url) chain().setLink({ href: url }).run();
-          }}
-          title="Wstaw link"
-        >
-          <LinkIcon className="w-4 h-4" />
-        </Button>
-
-        <Button
-          type="button"
-          size="sm"
-          variant="ghost"
-          onClick={() => chain().insertTable({ rows: 2, cols: 2, withHeaderRow: true }).run()}
-          title="Wstaw tabelę 2×2"
-        >
-          <TableIcon className="w-4 h-4" />
-        </Button>
-
-        <Button type="button" size="sm" variant="ghost" onClick={() => chain().toggleCodeBlock().run()} title="Blok kodu">
-          <Code2 className="w-4 h-4" />
-        </Button>
-
-        <div className="mx-1 h-5 w-px bg-border" />
-
-        <Button
-          type="button"
-          size="sm"
-          variant="outline"
-          className="h-7"
-          onClick={() => {
-            const base = ((editor.storage as any).markdown.getMarkdown() || "").trim();
-            const next =
-              (base ? base + "\n\n" : "") +
-              "```quiz\n# Tu wstaw pytanie/odpowiedzi przez generator lub ręcznie\n```";
-            editor.commands.setContent(next, { emitUpdate: true });
-          }}
-          title="Wstaw blok quizu (```quiz)"
-        >
-          Wstaw quiz
-        </Button>
-
-        <div className="mx-1 h-5 w-px bg-border" />
-
-        <Button type="button" size="sm" variant="ghost" onClick={() => editor.commands.undo()} title="Cofnij">
-          <RotateCcw className="w-4 h-4" />
-        </Button>
-      </div>
-
-      {/* content edytora */}
-      <EditorContent editor={editor} />
-    </div>
-  );
-}
 
 type Mode = "wysiwyg" | "markdown";
 
@@ -321,7 +168,7 @@ export const MaterialSectionEditor = ({
       )}
       {hint && <p className="text-xs text-muted-foreground">{hint}</p>}
 
-      {/* globalny pasek akcji sekcji */}
+      {/* Pasek globalnych akcji */}
       <div className="flex flex-wrap items-center gap-2 mb-2">
         <Button type="button" size="sm" onClick={() => addSection(null)}>
           <Plus className="w-4 h-4 mr-1" />
@@ -343,14 +190,16 @@ export const MaterialSectionEditor = ({
 
           return (
             <div key={section.id} className="space-y-3">
-              {/* NAGŁÓWEK SEKCJI – nad panelem (bez kart) */}
+              {/* NAGŁÓWEK SEKCJI */}
               <div className="flex items-center justify-between gap-2 mt-12 pt-3 border-t border-t-2">
                 <div className="flex items-center gap-2 flex-1 min-w-0">
                   <Button
                     type="button"
                     variant="ghost"
                     size="sm"
-                    onClick={() => setExpanded((p) => ({ ...p, [section.id]: !p[section.id] }))}
+                    onClick={() =>
+                      setExpanded((p) => ({ ...p, [section.id]: !p[section.id] }))
+                    }
                     className="h-8 w-8 p-0 shrink-0"
                     title={expanded[section.id] ? "Zwiń sekcję" : "Rozwiń sekcję"}
                   >
@@ -367,9 +216,7 @@ export const MaterialSectionEditor = ({
                     onChange={(e) => updateTitle(index, e.target.value)}
                     className="h-8 font-semibold"
                     placeholder="Tytuł sekcji"
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") e.preventDefault();
-                    }}
+                    onKeyDown={(e) => e.key === "Enter" && e.preventDefault()}
                   />
                 </div>
 
@@ -431,13 +278,14 @@ export const MaterialSectionEditor = ({
                     <Trash2 className="w-4 h-4" />
                   </Button>
 
-                  {/* tryb edycji */}
                   <Button
                     type="button"
                     variant={currentMode === "wysiwyg" ? "secondary" : "ghost"}
                     size="sm"
                     className="h-8"
-                    onClick={() => setMode((p) => ({ ...p, [section.id]: "wysiwyg" }))}
+                    onClick={() =>
+                      setMode((p) => ({ ...p, [section.id]: "wysiwyg" }))
+                    }
                     title="Tryb WYSIWYG"
                   >
                     <Eye className="h-4 w-4 mr-1" />
@@ -448,7 +296,9 @@ export const MaterialSectionEditor = ({
                     variant={currentMode === "markdown" ? "secondary" : "ghost"}
                     size="sm"
                     className="h-8"
-                    onClick={() => setMode((p) => ({ ...p, [section.id]: "markdown" }))}
+                    onClick={() =>
+                      setMode((p) => ({ ...p, [section.id]: "markdown" }))
+                    }
                     title="Tryb Markdown"
                   >
                     <Code className="h-4 w-4 mr-1" />
@@ -457,28 +307,23 @@ export const MaterialSectionEditor = ({
                 </div>
               </div>
 
-              {/* PANEL EDYTORA — lekki panel zamiast karty */}
+              {/* PANEL EDYTORA */}
               {expanded[section.id] && (
                 <div className="rounded-xl border border-border shadow-sm bg-background">
-                  <div className="p-0">
-                    {currentMode === "wysiwyg" ? (
-                      <Wysiwyg value={section.content} onChange={(md) => updateSection(index, md)} />
-                    ) : (
-                      <Textarea
-                        value={section.content}
-                        onChange={(e) => updateSection(index, e.target.value)}
-                        className="font-mono text-sm min-h-[240px] rounded-none border-0"
-                        placeholder={STARTER_MD}
-                      />
-                    )}
-
-                    <div className="px-4 py-2 flex items-center justify-between text-xs text-muted-foreground border-t">
-                      <span>{(section.content || "").length} znaków</span>
-                      {section.hasQuiz && (
-                        <span className="text-blue-600 font-medium">Zawiera quiz</span>
-                      )}
-                    </div>
-                  </div>
+                  {currentMode === "wysiwyg" ? (
+                    <Wysiwyg
+                      value={section.content}
+                      onChange={(md) => updateSection(index, md)}
+                      placeholder="Zacznij pisać…"
+                    />
+                  ) : (
+                    <Textarea
+                      value={section.content}
+                      onChange={(e) => updateSection(index, e.target.value)}
+                      className="font-mono text-sm min-h-[240px] rounded-none border-0"
+                      placeholder={STARTER_MD}
+                    />
+                  )}
                 </div>
               )}
             </div>
@@ -490,3 +335,4 @@ export const MaterialSectionEditor = ({
     </div>
   );
 };
+export default MaterialSectionEditor;
