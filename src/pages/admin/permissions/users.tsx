@@ -20,9 +20,10 @@ import {
   SelectValue,
   Switch,
 } from "@/components/ui";
-import { Search, Shield, GraduationCap, UserCog } from "lucide-react";
+import { Search, Shield, GraduationCap, UserCog, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { UsersInfoCard } from "./components/UsersInfoCard";
+import { ClearUserActivitiesDialog } from "./components/ClearUserActivitiesDialog";
 
 type User = {
   id: string;
@@ -35,6 +36,8 @@ type User = {
 export const UsersManagement = () => {
   const [search, setSearch] = useState("");
   const [roleFilter, setRoleFilter] = useState<"all" | "student" | "teacher" | "admin">("all");
+  const [clearDialogOpen, setClearDialogOpen] = useState(false);
+  const [selectedUser, setSelectedUser] = useState<User | null>(null);
 
   const { data: usersData, isLoading, refetch } = useList<User>({
     resource: "users",
@@ -102,6 +105,11 @@ export const UsersManagement = () => {
         onError: () => toast.error("Błąd zmiany statusu"),
       }
     );
+  };
+
+  const handleOpenClearDialog = (user: User) => {
+    setSelectedUser(user);
+    setClearDialogOpen(true);
   };
 
   const getRoleBadge = (role: string) => {
@@ -221,6 +229,7 @@ export const UsersManagement = () => {
                     <TableHead>Obecna rola</TableHead>
                     <TableHead>Zmień rolę</TableHead>
                     <TableHead className="text-center">Aktywny</TableHead>
+                    <TableHead className="text-center">Akcje</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -250,6 +259,16 @@ export const UsersManagement = () => {
                           onCheckedChange={() => handleToggleActive(user.id, user.is_active)}
                         />
                       </TableCell>
+                      <TableCell className="text-center">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleOpenClearDialog(user)}
+                          className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      </TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
@@ -257,6 +276,16 @@ export const UsersManagement = () => {
             )}
           </CardContent>
         </Card>
+
+        {/* Dialog czyszczenia aktywności */}
+        <ClearUserActivitiesDialog
+          open={clearDialogOpen}
+          onOpenChange={setClearDialogOpen}
+          user={selectedUser}
+          onSuccess={() => {
+            refetch();
+          }}
+        />
       </div>
     </SubPage>
   );

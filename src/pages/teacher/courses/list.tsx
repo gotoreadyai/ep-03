@@ -327,7 +327,7 @@ export const CoursesList = () => {
                         </>
                       )}
                       <DropdownMenuSeparator />
-                      <DropdownMenuItem
+                      {/* <DropdownMenuItem
                         onClick={() =>
                           handleNavigateToWizard(
                             "/teacher/educational-material/step1",
@@ -352,7 +352,7 @@ export const CoursesList = () => {
                       >
                         <Brain className="mr-2 h-4 w-4" />
                         Generuj quiz z AI
-                      </DropdownMenuItem>
+                      </DropdownMenuItem> */}
                       {isAdmin && (
                         <>
                           <DropdownMenuSeparator />
@@ -443,13 +443,13 @@ export const CoursesList = () => {
                   Nie prowadzisz jeszcze żadnych kursów
                 </h3>
                 <p className="text-muted-foreground mb-6 max-w-md mx-auto">
-                  Administrator systemu tworzy kursy i przypisuje do nich nauczycieli. 
-                  Skontaktuj się z administratorem, aby uzyskać dostęp do kursów, które będziesz prowadzić.
+                  Operator systemu tworzy kursy i przypisuje do nich nauczycieli. 
+                  Skontaktuj się z operatorem, aby uzyskać dostęp do kursów, które będziesz prowadzić.
                 </p>
                 <div className="flex gap-3 justify-center">
                   <Button variant="outline" disabled>
                     <AlertCircle className="w-4 h-4 mr-2" />
-                    Kursy tworzy administrator
+                    Kursy tworzy operator
                   </Button>
                 </div>
               </>

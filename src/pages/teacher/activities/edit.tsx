@@ -167,8 +167,9 @@ export const ActivitiesEdit = () => {
   return (
     <SubPage>
       <BackToCourseButton />
-
+      https://mdxeditor.dev/editor/demo
       <FlexBox>
+     
         <Lead
           title={
             <div className="flex items-center gap-2">

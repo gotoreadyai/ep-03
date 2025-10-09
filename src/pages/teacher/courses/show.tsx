@@ -1,6 +1,6 @@
 // src/pages/teacher/courses/show.tsx
 
-import { useNavigation, useDelete } from "@refinedev/core";
+import { useNavigation, useDelete, useGetIdentity } from "@refinedev/core";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   ArrowLeft,
@@ -8,7 +8,6 @@ import {
   Users,
   FileText,
   Plus,
-  Wand,
   Brain,
   Layout,
   Sparkles,
@@ -34,6 +33,8 @@ export const CoursesShow = () => {
   const { list, edit } = useNavigation();
   const { id } = useParams();
   const [searchParams, setSearchParams] = useSearchParams();
+  const { data: identity } = useGetIdentity<any>();
+  const isAdmin = identity?.role === "admin";
 
   // Custom hooks
   const { navigateWithReturn, navigateToWizard } = useNavigationHelper();
@@ -154,21 +155,16 @@ export const CoursesShow = () => {
         <div className="flex items-center justify-between">
           <h1 className="text-2xl font-bold">Szczegóły kursu</h1>
           <div className="flex gap-2">
-            {/* <Button 
-              onClick={() => navigateWithReturn(`/teacher/course-structure/edit/${course?.id}`)}
-              size="sm"
-              variant="secondary"
-            >
-              <Sparkles className="w-4 h-4 mr-2" />
-              Edytuj z AI
-            </Button> */}
-            <Button 
-              onClick={() => edit("courses", course?.id ?? 0)}
-              size="sm"
-            >
-              <Edit className="w-4 h-4 mr-2" />
-              Edytuj kurs
-            </Button>
+            {/* Edycja kursu dostępna tylko dla admina */}
+            {isAdmin && (
+              <Button 
+                onClick={() => edit("courses", course?.id ?? 0)}
+                size="sm"
+              >
+                <Edit className="w-4 h-4 mr-2" />
+                Edytuj kurs
+              </Button>
+            )}
           </div>
         </div>
         <CourseOverview course={course} />
@@ -196,14 +192,6 @@ export const CoursesShow = () => {
               )}
             </CardTitle>
             <div className="flex gap-2">
-              {/* <Button
-                size="sm"
-                variant="outline"
-                onClick={() => navigateWithReturn(`/teacher/course-structure/edit/${course?.id}`)}
-              >
-                <Plus className="w-4 h-4 mr-2" />
-                Dodaj tematy z AI
-              </Button> */}
               <Button
                 size="sm"
                 onClick={() => navigateWithReturn(`/teacher/topics/create?course_id=${id}`)}
@@ -374,8 +362,6 @@ export const CoursesShow = () => {
           )}
         </CardContent>
       </Card>
-
-     
     </SubPage>
   );
 };
