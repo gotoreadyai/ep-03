@@ -42,6 +42,10 @@ export const ActivitiesCreate = () => {
   const [searchParams] = useSearchParams();
   const topicId = searchParams.get("topic_id");
 
+  // ⬇️ Nowe: odczyt typu z URL (?type=quiz)
+  const typeParam = (searchParams.get("type") || "").toLowerCase();
+  const initialType = typeParam === "quiz" ? "quiz" : "material";
+
   const { data: topicData } = useOne({
     resource: "topics",
     id: topicId as string,
@@ -86,7 +90,7 @@ export const ActivitiesCreate = () => {
   } = useForm<ActivityFormData>({
     defaultValues: {
       topic_id: topicId ? parseInt(topicId) : undefined,
-      type: "material",
+      type: initialType,              // ⬅️ ustawiamy startowy typ z querystringu
       is_published: false,
       position: 1,
       passing_score: 70,

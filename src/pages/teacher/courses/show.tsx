@@ -287,7 +287,7 @@ export const CoursesShow = () => {
                             <Sparkles className="w-4 h-4 mr-2" />
                             Generuj materiał z AI
                           </Button> */}
-                          <Button
+                          {/* <Button
                             size="sm"
                             variant="secondary"
                             onClick={() =>
@@ -301,7 +301,7 @@ export const CoursesShow = () => {
                           >
                             <Brain className="w-4 h-4 mr-2" />
                             Generuj quiz z AI
-                          </Button>
+                          </Button> */}
                         </div>
                       </div>
                     )}
