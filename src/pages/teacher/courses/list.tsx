@@ -467,7 +467,7 @@ export const CoursesList = () => {
                     <Plus className="w-4 h-4 mr-2" />
                     Dodaj ręcznie
                   </Button>
-                  <Button
+                  {/* <Button
                     onClick={() =>
                       handleNavigateToWizard("/teacher/course-structure/step1")
                     }
@@ -475,7 +475,7 @@ export const CoursesList = () => {
                   >
                     <Sparkles className="w-4 h-4 mr-2" />
                     Wygeneruj z AI
-                  </Button>
+                  </Button> */}
                 </div>
               </>
             )}

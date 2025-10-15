@@ -9,8 +9,6 @@ import {
   ChevronRight,
   GripVertical,
   FileText,
-  Sparkles,
-  Brain,
   Eye,
   EyeOff,
 } from "lucide-react";
@@ -157,13 +155,19 @@ export const TopicCard = ({
               <DropdownMenuContent align="end">
                 <DropdownMenuLabel>Dodaj treść</DropdownMenuLabel>
                 <DropdownMenuItem
-                  onClick={() => handleNavigateWithState(`/activities/create?topic_id=${topic.id}`)}
+                  onClick={() => handleNavigateWithState(`/teacher/activities/create?topic_id=${topic.id}`)}
                 >
                   <Plus className="mr-2 h-4 w-4" />
-                  Dodaj ręcznie
+                  Dodaj materiał
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={() => handleNavigateWithState(`/teacher/activities/create?topic_id=${topic.id}&type=quiz`)}
+                >
+                  <Plus className="mr-2 h-4 w-4" />
+                  Dodaj quiz 
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem
+                {/* <DropdownMenuItem
                   onClick={() => handleWizardNavigation('/teacher/educational-material/step1')}
                   className="text-purple-600 focus:text-purple-600"
                 >
@@ -176,7 +180,7 @@ export const TopicCard = ({
                 >
                   <Brain className="mr-2 h-4 w-4" />
                   Generuj quiz z AI
-                </DropdownMenuItem>
+                </DropdownMenuItem> */}
               </DropdownMenuContent>
             </DropdownMenu>
 

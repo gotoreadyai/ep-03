@@ -10,7 +10,6 @@ import {
   Plus,
   Brain,
   Layout,
-  Sparkles,
 } from "lucide-react";
 import { Button, Badge } from "@/components/ui";
 import { FlexBox } from "@/components/shared";
@@ -261,12 +260,20 @@ export const CoursesShow = () => {
                           <Button
                             size="sm"
                             variant="outline"
-                            onClick={() => navigateWithReturn(`/activities/create?topic_id=${topic.id}`)}
+                            onClick={() => navigateWithReturn(`/teacher/activities/create?topic_id=${topic.id}`)}
                           >
                             <Plus className="w-4 h-4 mr-2" />
-                            Dodaj ręcznie
+                            Dodaj materiał
                           </Button>
                           <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => navigateWithReturn(`/teacher/activities/create?topic_id=${topic.id}&type=quiz`)}
+                          >
+                            <Plus className="w-4 h-4 mr-2" />
+                            Dodaj quiz 
+                          </Button>
+                          {/* <Button
                             size="sm"
                             onClick={() =>
                               navigateToWizard("/teacher/educational-material/step1", {
@@ -279,7 +286,7 @@ export const CoursesShow = () => {
                           >
                             <Sparkles className="w-4 h-4 mr-2" />
                             Generuj materiał z AI
-                          </Button>
+                          </Button> */}
                           <Button
                             size="sm"
                             variant="secondary"
